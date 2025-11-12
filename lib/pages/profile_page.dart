@@ -81,11 +81,13 @@ class _ProfilePageState extends State<ProfilePage> {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('ลบบัญชีสำเร็จ')));
-          Navigator.pushAndRemoveUntil(
+          // Navigator.pushAndRemoveUntil(
+          //   context,
+          //   MaterialPageRoute(builder: (_) => const LoginPage()),
+          // ใช้ pushNamedAndRemoveUntil เพื่อล้างสแต็คและกลับไปที่ Home หลังลบบัญชี
+          Navigator.of(
             context,
-            MaterialPageRoute(builder: (_) => const LoginPage()),
-            (route) => false,
-          );
+          ).pushNamedAndRemoveUntil('/home', (route) => false);
         }
       } on FirebaseAuthException catch (e) {
         print("Error deleting account: ${e.code} - ${e.message}");
@@ -204,11 +206,13 @@ class _ProfilePageState extends State<ProfilePage> {
                       // VVV 2. แก้ไขการเรียกใช้ตรงนี้ VVV
                       await FirebaseAuth.instance.signOut();
                       if (mounted) {
-                        Navigator.pushAndRemoveUntil(
+                        // Navigator.pushAndRemoveUntil(
+                        //   context,
+                        //   MaterialPageRoute(builder: (_) => const LoginPage()),
+                        // ใช้ pushNamedAndRemoveUntil เพื่อล้างสแต็คและให้หน้า Home เป็น root
+                        Navigator.of(
                           context,
-                          MaterialPageRoute(builder: (_) => const LoginPage()),
-                          (route) => false,
-                        );
+                        ).pushNamedAndRemoveUntil('/home', (route) => false);
                       }
                     },
                   ),

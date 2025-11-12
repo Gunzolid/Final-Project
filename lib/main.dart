@@ -53,6 +53,11 @@ class MyApp extends StatelessWidget {
           ),
 
           themeMode: currentMode,
+          routes: {
+            '/login': (_) => const LoginPage(),
+            '/home': (_) => const HomePage(),
+            '/admin': (_) => const AdminParkingPage(),
+          },
           home: const AuthChecker(),
         );
       },

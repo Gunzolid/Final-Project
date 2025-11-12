@@ -85,11 +85,13 @@ class _AdminParkingPageState extends State<AdminParkingPage> {
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
               if (mounted) {
-                Navigator.pushAndRemoveUntil(
+                // Navigator.pushAndRemoveUntil(
+                //   context,
+                //   MaterialPageRoute(builder: (_) => const LoginPage()),
+                // ใช้ pushNamedAndRemoveUntil เพื่อล้างสแต็คและให้หน้า Home เป็น root หลังออกจากระบบ
+                Navigator.of(
                   context,
-                  MaterialPageRoute(builder: (_) => const LoginPage()),
-                  (route) => false,
-                );
+                ).pushNamedAndRemoveUntil('/home', (route) => false);
               }
             },
           ),
