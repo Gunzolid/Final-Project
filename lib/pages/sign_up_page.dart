@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// import 'package:mtproject/pages/home_page.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -43,9 +42,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
       // ✅ แก้ตรงนี้: ไปหน้า Home หลังสมัครทันที
       if (!mounted) return;
-      // Navigator.pushReplacement(
-      //   context,
-      //   MaterialPageRoute(builder: (context) => const HomePage()),
       // ล้างสแต็คเพื่อให้หน้าโฮมเป็น root หลังสมัครเสร็จ
       Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
     } on FirebaseAuthException catch (e) {

@@ -55,16 +55,6 @@ class _LoginPageState extends State<LoginPage> {
       // 4) นำทางครั้งเดียวตามบทบาท
       if (!_navigated && mounted) {
         _navigated = true;
-        // ใช้ Navigator.pushReplacement เพื่อแทนที่หน้า Login ใน Stack
-        // Navigator.pushReplacement(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder:
-        //         (_) =>
-        //             isAdmin
-        //                 ? const AdminParkingPage()
-        //                 : const HomePage(), // <-- ถ้าเป็น User ให้ไป Home
-        //   ),
         Navigator.of(context).pushNamedAndRemoveUntil(
           isAdmin ? '/admin' : '/home',
           (route) => false,
@@ -96,52 +86,6 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    // return Scaffold(
-    //   // VVV 1. เพิ่ม AppBar VVV
-    //   appBar: AppBar(
-    //     title: const Text('เข้าสู่ระบบ'),
-    //     // เพิ่มปุ่มย้อนกลับที่มุมซ้ายบน
-    //     leading: IconButton(
-    //       icon: const Icon(Icons.arrow_back_ios),
-    //       onPressed: () {
-    //         // สั่ง pop เพื่อกลับไปยังหน้า Home ที่อยู่ข้างใต้
-    //         Navigator.pop(context);
-    //       },
-    //     ),
-    //     automaticallyImplyLeading: false, // ป้องกันการสร้างปุ่มย้อนกลับซ้ำซ้อน
-    //   ),
-    //   // ^^^ สิ้นสุด AppBar ^^^
-
-    //   // VVV 2. ย้าย body VVV
-    //   body: Center(
-    //     child: ConstrainedBox(
-    //       constraints: const BoxConstraints(maxWidth: 320),
-    //       child: Column(
-    //         mainAxisSize: MainAxisSize.min,
-    //         children: [
-    //           TextField(
-    //             controller: _email,
-    //             keyboardType: TextInputType.emailAddress,
-    //             decoration: const InputDecoration(labelText: 'Email'),
-    //           ),
-    //           const SizedBox(height: 12),
-    //           TextField(
-    //             controller: _pass,
-    //             obscureText: true,
-    //             decoration: const InputDecoration(labelText: 'Password'),
-    //           ),
-    //           const SizedBox(height: 20),
-    //           _loading
-    //               ? const CircularProgressIndicator()
-    //               : SizedBox(
-    //                 width: double.infinity,
-    //                 height: 44,
-    //                 child: ElevatedButton(
-    //                   onPressed: _onLogin,
-    //                   style: ElevatedButton.styleFrom(
-    //                     backgroundColor: Colors.grey[300],
-    //                     shape: RoundedRectangleBorder(
-    //                       borderRadius: BorderRadius.circular(10),
     return WillPopScope(
       onWillPop: () async {
         // ป้องกันการย้อนกลับไปยังสแต็คว่าง โดยพากลับไปหน้า Home แทน
@@ -191,24 +135,7 @@ class _LoginPageState extends State<LoginPage> {
                           style: TextStyle(color: Colors.black),
                         ),
                       ),
-                      // child: const Text(
-                      //   'Login',
-                      //   style: TextStyle(color: Colors.black),
                     ),
-                // ),
-                //       ),
-                //   const SizedBox(height: 12),
-                //   TextButton(
-                //     onPressed: () {
-                //       // ถ้ามีการกดสมัครสมาชิก หน้า Login จะถูก Push ทับ
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(builder: (_) => const SignUpPage()),
-                //       );
-                //     },
-                //     child: const Text('สร้างบัญชีใหม่'),
-                //   ),
-                // ],
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () {

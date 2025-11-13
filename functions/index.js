@@ -14,9 +14,12 @@ try {
 const db = getFirestore();
 const authAdmin = getAuth(); // Initialize Auth Admin SDK
 
-/**
- * V2 HTTPS Callable Function: Recommends and holds a parking spot.
- */
+const kCustomPriorityOrder = [
+  1, 2, 3, 27, 28, 29, 4, 30, 5, 31, 6, 32, 7, 33, 8, 34, 9, 35, 10, 36, 11,
+  37, 12, 38, 13, 39, 40, 41, 42, 14, 15, 16, 43, 17, 44, 18, 45, 19, 46, 20,
+  47, 21, 48, 22, 49, 23, 50, 24, 51, 25, 52, 26,
+];
+
 exports.recommendAndHold = onCall(async (request) => {
   const {uid, holdSeconds = 900} = request.data;
   if (!uid) {
@@ -37,17 +40,36 @@ exports.recommendAndHold = onCall(async (request) => {
 
     // Find available spot
     const availableSpotQuery = db.collection("parking_spots")
-        .where("status", "==", "available")
-        .orderBy("id")
-        .limit(1);
+        .where("status", "==", "available");
     const availableSpotSnap = await transaction.get(availableSpotQuery);
     if (availableSpotSnap.empty) {
       console.log("No available spots found.");
       return {ok: false, reason: "No available spots"};
     }
 
-    // Hold the spot
-    const spotToHold = availableSpotSnap.docs[0];
+    const sortedAvailableDocs = availableSpotSnap.docs
+        .slice()
+        .sort((a, b) => {
+          const aIdRaw = Number.parseInt(a.id, 10);
+          const bIdRaw = Number.parseInt(b.id, 10);
+          const aId = Number.isNaN(aIdRaw) ? Number.MAX_SAFE_INTEGER : aIdRaw;
+          const bId = Number.isNaN(bIdRaw) ? Number.MAX_SAFE_INTEGER : bIdRaw;
+          const aRank = kCustomPriorityOrder.indexOf(aId);
+          const bRank = kCustomPriorityOrder.indexOf(bId);
+          const aPriority = aRank === -1 ? kCustomPriorityOrder.length + aId : aRank;
+          const bPriority = bRank === -1 ? kCustomPriorityOrder.length + bId : bRank;
+          if (aPriority !== bPriority) {
+            return aPriority - bPriority;
+          }
+          return aId - bId;
+        });
+
+    const spotToHold = sortedAvailableDocs[0];
+    if (!spotToHold) {
+      console.log("No available spots after sorting.");
+      return {ok: false, reason: "No available spots"};
+    }
+
     const holdExpiresAt = new Date(Date.now() + holdSeconds * 1000);
     transaction.update(spotToHold.ref, {
       status: "held",

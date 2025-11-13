@@ -18,8 +18,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
-  // --- ลบ PageController ---
-  // final PageController _pageController = PageController(); // ไม่ใช้แล้ว
 
   // State for Home Page Content
   bool _isSearching = false;
@@ -324,38 +322,9 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
+        // ป้องกันไม่ให้มีปุ่มย้อนกลับหากมีการ push หน้านี้ผิดพลาด
+        automaticallyImplyLeading: false,
         title: const Text('Smart Parking'),
-        // actions: [
-        //   if (_isLoadingUser)
-        //     const Padding(
-        //       padding: EdgeInsets.all(16.0),
-        //       child: SizedBox(
-        //         width: 24,
-        //         height: 24,
-        //         child: CircularProgressIndicator(strokeWidth: 2),
-        //       ),
-        //     )
-        //   else if (_currentUser != null)
-        //     IconButton(
-        //       icon: const Icon(Icons.person),
-        //       tooltip: 'โปรไฟล์',
-        //       onPressed: () {
-        //         setState(() => _currentIndex = 1);
-        //       },
-        //     )
-        //   else
-        //     Padding(
-        //       padding: const EdgeInsets.symmetric(horizontal: 16),
-        //       child: ElevatedButton(
-        //         onPressed:
-        //             () => Navigator.push(
-        //               context,
-        //               MaterialPageRoute(builder: (_) => const LoginPage()),
-        //             ),
-        //         child: const Text('เข้าสู่ระบบ'),
-        //       ),
-        //     ),
-        // ],
       ),
       // --- ใช้ IndexedStack (เหมือนเดิม) ---
       body: IndexedStack(index: _currentIndex, children: pages),
