@@ -61,7 +61,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         // ตรวจสอบว่าฟังก์ชัน updateUserProfile รับแค่ uid กับ name
         await _firebaseService.updateUserProfile(user.uid, newName);
         profileUpdated = true;
-        print("Name updated in Firestore.");
+        debugPrint("Name updated in Firestore.");
       }
 
       if (mounted) {
@@ -75,7 +75,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         }
       }
     } catch (e) {
-      print("Error saving profile: $e");
+      debugPrint("Error saving profile: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('เกิดข้อผิดพลาดในการบันทึก: $e')),

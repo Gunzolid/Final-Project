@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:mtproject/services/parking_functions.dart'; // โหมดจริง (Cloud Functions)
-import 'package:mtproject/services/firebase_parking_service.dart'; // โหมด dev (client)
+// import 'package:mtproject/services/firebase_parking_service.dart'; // โหมด dev (client)
 import 'package:mtproject/ui/recommend_dialog.dart';
 
 class SearchingPage extends StatefulWidget {
@@ -12,7 +12,7 @@ class SearchingPage extends StatefulWidget {
 }
 
 class _SearchingPageState extends State<SearchingPage> {
-  final _svc = FirebaseParkingService();
+  // final _svc = FirebaseParkingService();
   bool _done = false; // กัน pop ซ้ำ
 
   @override
@@ -59,10 +59,10 @@ class _SearchingPageState extends State<SearchingPage> {
     }
   }
 
-  void _noSpotAndBack() {
-    _show('ขณะนี้ไม่มีช่องว่าง');
-    _backWithoutSpot();
-  }
+  // void _noSpotAndBack() {
+  //   _show('ขณะนี้ไม่มีช่องว่าง');
+  //   _backWithoutSpot();
+  // }
 
   void _backWithoutSpot() {
     _done = true;

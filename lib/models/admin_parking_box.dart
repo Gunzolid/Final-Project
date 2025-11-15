@@ -124,7 +124,7 @@ class AdminParkingBox extends StatelessWidget {
                   SnackBar(content: Text('เปลี่ยนสถานะไม่สำเร็จ: $e')),
                 );
               } else {
-                print('Error updating status for $docId: $e');
+                debugPrint('Error updating status for $docId: $e');
               }
             }
           },

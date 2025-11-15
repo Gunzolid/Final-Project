@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mtproject/pages/edit_profile_page.dart';
 import 'package:mtproject/services/firebase_service.dart';
 import 'package:mtproject/services/theme_manager.dart';
-import 'package:mtproject/pages/login_page.dart';
+
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -43,9 +43,13 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     }
   }
-
+  // Manual test plan:
+  // 1. Sign in with a test user and navigate to the profile tab.
+  // 2. Tap "ลบบัญชี", confirm, and verify that the snackbar appears and the
+  //    app routes to the login screen.
+  // 3. Repeat after idling >5 minutes to trigger requires-recent-login and
+  //    confirm the re-auth message appears without deleting Firestore data.
   Future<void> _deleteAccount() async {
-    // ... (โค้ดส่วนนี้เหมือนเดิม) ...
     final user = _currentUser;
     if (user == null) return;
 
@@ -74,31 +78,49 @@ class _ProfilePageState extends State<ProfilePage> {
     if (confirm == true) {
       setState(() => _isLoading = true);
       try {
-        await _firebaseService.deleteUserData(user.uid);
-        await user.delete();
+        await _firebaseService.deleteCurrentUserCompletely();
 
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text('ลบบัญชีสำเร็จ')));
-          Navigator.of(
-            context,
-          ).pushNamedAndRemoveUntil('/home', (route) => false);
+          ).showSnackBar(const SnackBar(content: Text('บัญชีของคุณถูกลบแล้ว')));
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            '/login',
+            (route) => false,
+          );
         }
       } on FirebaseAuthException catch (e) {
-        print("Error deleting account: ${e.code} - ${e.message}");
-        String message = 'เกิดข้อผิดพลาดในการลบบัญชี';
-        if (e.code == 'requires-recent-login') {
-          message =
-              'การดำเนินการนี้ต้องมีการล็อกอินใหม่ กรุณาออกจากระบบแล้วล็อกอินอีกครั้งเพื่อลบบัญชี';
-        }
+        debugPrint("Error deleting account: ${e.code} - ${e.message}");
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(message)));
+if (e.code == 'requires-recent-login') {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'กรุณาล็อกอินอีกครั้งเพื่อยืนยันการลบบัญชีของคุณ',
+                ),
+              ),
+            );
+            await FirebaseAuth.instance.signOut();
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              '/login',
+              (route) => false,
+            );
+          } else {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'เกิดข้อผิดพลาดในการลบบัญชี: ${e.message ?? e.code}',
+                ),
+              ),
+            );
+          }
         }
       } catch (e) {
-        print("Error deleting account (Firestore or other): $e");
+        debugPrint("Error deleting account (Firestore or other): $e");
         if (mounted) {
           ScaffoldMessenger.of(
             context,

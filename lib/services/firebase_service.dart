@@ -1,18 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // อัปเดตข้อมูลโปรไฟล์ของผู้ใช้
   Future<void> updateUserProfile(String uid, String name) async {
-    print(">>> Updating profile for UID: $uid");
-    print(">>> New name to save: $name"); // ดูว่าค่า name ถูกต้องไหม
+    debugPrint(">>> Updating profile for UID: $uid");
+    debugPrint(">>> New name to save: $name"); // ดูว่าค่า name ถูกต้องไหม
     try {
       await _firestore.collection('users').doc(uid).update({'name': name});
-      print(">>> Successfully updated 'name' field.");
+      debugPrint(">>> Successfully updated 'name' field.");
     } catch (e) {
-      print(">>> Error updating profile: $e");
+      debugPrint(">>> Error updating profile: $e");
     }
   }
 
@@ -28,11 +29,40 @@ class FirebaseService {
   Future<void> deleteUserData(String uid) async {
     try {
       await _firestore.collection('users').doc(uid).delete();
-      print("User data deleted from Firestore for UID: $uid");
+      debugPrint("User data deleted from Firestore for UID: $uid");
     } catch (e) {
-      print("Error deleting user data from Firestore: $e");
+      debugPrint("Error deleting user data from Firestore: $e");
       // อาจจะ rethrow หรือจัดการ error ตามความเหมาะสม
       rethrow;
     }
   }
+  /// Deletes both the Firebase Auth user and the associated Firestore profile.
+  ///
+  /// Auth deletion is attempted first so that we never remove profile data when
+  /// the SDK requires a recent login. Once the credential is cleared, the user
+  /// document is removed using the stored UID.
+  Future<void> deleteCurrentUserCompletely() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'No authenticated user is available for deletion.',
+      );
+    }
+
+    final uid = user.uid;
+
+    try {
+      await user.delete();
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        // Bubble up so the caller can trigger a re-authentication flow.
+        throw e;
+      }
+      rethrow;
+    }
+
+    await _firestore.collection('users').doc(uid).delete();
+  }
+
 }

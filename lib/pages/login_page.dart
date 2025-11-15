@@ -2,9 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-// import 'package:mtproject/pages/home_page.dart';
-// import 'package:mtproject/pages/admin_parking_page.dart'; // <-- ชื่อหน้าแอดมินของคุณ
 import 'package:mtproject/pages/sign_up_page.dart';
 import 'package:mtproject/services/user_bootstrap.dart';
 

@@ -158,7 +158,7 @@ class FirebaseParkingService {
       throw ArgumentError('Invalid target status provided.');
     }
 
-    print('Attempting to set all spots to: $targetStatus');
+    debugPrint('Attempting to set all spots to: $targetStatus');
 
     final spotsCollection = _firestore.collection('parking_spots');
     final WriteBatch batch = _firestore.batch(); // สร้าง Batch Write
@@ -181,7 +181,7 @@ class FirebaseParkingService {
 
       // 3. ส่งคำสั่งทั้งหมดใน batch ไปทำงานพร้อมกัน
       await batch.commit();
-      print('All spots updated to: $targetStatus');
+      debugPrint('All spots updated to: $targetStatus');
     } catch (e) {
       rethrow; // ส่งต่อ Error ให้ UI จัดการ
     }

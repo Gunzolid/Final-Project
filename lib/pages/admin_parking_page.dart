@@ -4,7 +4,6 @@ import 'package:mtproject/models/admin_parking_map_layout.dart';
 // 1. Import Service
 import 'package:mtproject/services/firebase_parking_service.dart';
 // Import หน้า Login เผื่อใช้ตอน Logout
-import 'package:mtproject/pages/login_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 // 2. เปลี่ยนเป็น StatefulWidget
@@ -85,9 +84,6 @@ class _AdminParkingPageState extends State<AdminParkingPage> {
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
               if (mounted) {
-                // Navigator.pushAndRemoveUntil(
-                //   context,
-                //   MaterialPageRoute(builder: (_) => const LoginPage()),
                 // ใช้ pushNamedAndRemoveUntil เพื่อล้างสแต็คและให้หน้า Home เป็น root หลังออกจากระบบ
                 Navigator.of(
                   context,
