@@ -5,7 +5,6 @@ import 'package:mtproject/pages/edit_profile_page.dart';
 import 'package:mtproject/services/firebase_service.dart';
 import 'package:mtproject/services/theme_manager.dart';
 
-
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -43,103 +42,76 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     }
   }
-  // Manual test plan:
-  // 1. Sign in with a test user and navigate to the profile tab.
-  // 2. Tap "ลบบัญชี", confirm, and verify that the snackbar appears and the
-  //    app routes to the login screen.
-  // 3. Repeat after idling >5 minutes to trigger requires-recent-login and
-  //    confirm the re-auth message appears without deleting Firestore data.
-  Future<void> _deleteAccount() async {
-    final user = _currentUser;
-    if (user == null) return;
 
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('ยืนยันการลบบัญชี'),
-            content: const Text(
-              'คุณแน่ใจหรือไม่ว่าต้องการลบบัญชีนี้? การดำเนินการนี้ไม่สามารถย้อนกลับได้ และข้อมูลทั้งหมดของคุณจะถูกลบ',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('ยกเลิก'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('ลบบัญชี'),
-              ),
-            ],
-          ),
-    );
+  // ลบการลบบัญชีผู้ใช้ออกเพราะมี Bug
+  // Future<void> _deleteAccount() async {
+  //   final user = _currentUser;
+  //   if (user == null) return;
 
-    if (confirm == true) {
-      setState(() => _isLoading = true);
-      try {
-        await _firebaseService.deleteCurrentUserCompletely();
+  //   final confirm = await showDialog<bool>(
+  //     context: context,
+  //     builder:
+  //         (context) => AlertDialog(
+  //           title: const Text('ยืนยันการลบบัญชี'),
+  //           content: const Text(
+  //             'คุณแน่ใจหรือไม่ว่าต้องการลบบัญชีนี้? การดำเนินการนี้ไม่สามารถย้อนกลับได้ และข้อมูลทั้งหมดของคุณจะถูกลบ',
+  //           ),
+  //           actions: [
+  //             TextButton(
+  //               onPressed: () => Navigator.of(context).pop(false),
+  //               child: const Text('ยกเลิก'),
+  //             ),
+  //             TextButton(
+  //               onPressed: () => Navigator.of(context).pop(true),
+  //               style: TextButton.styleFrom(foregroundColor: Colors.red),
+  //               child: const Text('ลบบัญชี'),
+  //             ),
+  //           ],
+  //         ),
+  //   );
 
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('บัญชีของคุณถูกลบแล้ว')));
-          Navigator.of(context).pushNamedAndRemoveUntil(
-            '/login',
-            (route) => false,
-          );
-        }
-      } on FirebaseAuthException catch (e) {
-        debugPrint("Error deleting account: ${e.code} - ${e.message}");
-        if (mounted) {
-if (e.code == 'requires-recent-login') {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'กรุณาล็อกอินอีกครั้งเพื่อยืนยันการลบบัญชีของคุณ',
-                ),
-              ),
-            );
-            await FirebaseAuth.instance.signOut();
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              '/login',
-              (route) => false,
-            );
-          } else {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'เกิดข้อผิดพลาดในการลบบัญชี: ${e.message ?? e.code}',
-                ),
-              ),
-            );
-          }
-        }
-      } catch (e) {
-        debugPrint("Error deleting account (Firestore or other): $e");
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
-        }
-      } finally {
-        if (mounted) {
-          setState(() => _isLoading = false);
-        }
-      }
-    }
-  }
+  //   if (confirm == true) {
+  //     setState(() => _isLoading = true);
+  //     try {
+  //       // 3. เรียกใช้ Cloud Function (แทน user.delete())
+  //       final callable = FirebaseFunctions.instance.httpsCallable(
+  //         'deleteUserAccount',
+  //       );
+
+  //       await callable.call(); // สั่งให้ Cloud Function ทำงาน
+
+  //       // 4. หลังจาก Cloud Function ทำงานสำเร็จ, Auth listener ใน HomePage
+  //       // จะตรวจจับการ Logout อัตโนมัติ
+
+  //       if (mounted) {
+  //         ScaffoldMessenger.of(
+  //           context,
+  //         ).showSnackBar(const SnackBar(content: Text('ลบบัญชีสำเร็จ')));
+  //         // Pop กลับไปหน้า Home (ซึ่งจะแสดงผลแบบ Log out แล้ว)
+  //         Navigator.of(context).pop();
+  //       }
+  //     } catch (e) {
+  //       // 5. จัดการ Error (เช่น Network error หรือ Error จาก Cloud Function)
+  //       print("Error deleting account via Cloud Function: $e");
+  //       if (mounted) {
+  //         ScaffoldMessenger.of(context).showSnackBar(
+  //           SnackBar(content: Text('เกิดข้อผิดพลาดในการลบบัญชี: $e')),
+  //         );
+  //       }
+  //     } finally {
+  //       if (mounted) {
+  //         setState(() => _isLoading = false);
+  //       }
+  //     }
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
     final user = _currentUser;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('โปรไฟล์')),
+      appBar: AppBar(title: const Text('Profile')),
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -203,17 +175,18 @@ if (e.code == 'requires-recent-login') {
                     },
                   ),
                   const Divider(),
-                  ListTile(
-                    leading: Icon(
-                      Icons.delete_forever,
-                      color: Colors.red.shade400,
-                    ),
-                    title: Text(
-                      'ลบบัญชี',
-                      style: TextStyle(color: Colors.red.shade400),
-                    ),
-                    onTap: _deleteAccount,
-                  ),
+                  // ปิดการลบบัญชีผู้ใช้ออกเพราะมี Bug
+                  // ListTile(
+                  //   leading: Icon(
+                  //     Icons.delete_forever,
+                  //     color: Colors.red.shade400,
+                  //   ),
+                  //   title: Text(
+                  //     'ลบบัญชี',
+                  //     style: TextStyle(color: Colors.red.shade400),
+                  //   ),
+                  //   onTap: _deleteAccount,
+                  // ),
                   ListTile(
                     leading: Icon(Icons.logout, color: Colors.orange.shade700),
                     title: Text(

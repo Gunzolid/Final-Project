@@ -4,7 +4,7 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {onDocumentUpdated} = require("firebase-functions/v2/firestore");
 const {initializeApp} = require("firebase-admin/app");
 const {getFirestore} = require("firebase-admin/firestore");
-// Import เพิ่มเติมสำหรับ Auth Admin SDK
+const {onUserDeleted} = require("firebase-functions/v2/auth");
 const {getAuth} = require("firebase-admin/auth");
 
 // Initialize Firebase Admin SDK (ครั้งเดียว)
@@ -130,3 +130,45 @@ exports.syncAuthEmailToFirestoreOnUpdate = onDocumentUpdated("users/{userId}", a
   }
   return null; // No update needed or error occurred
 });
+
+// ปิดก่อนเนื่องจากไม่ได้ใช้
+// exports.onUserDeletedCleanup = onUserDeleted(async (event) => {
+//   const user = event.data; // ข้อมูลผู้ใช้ที่ถูกลบ
+//   const uid = user.uid;
+
+//   console.log(`User ${uid} deleted from Auth. Deleting Firestore document...`);
+
+//   try {
+//     // ตามไปลบ Document ใน 'users' collection ที่มี
+//     await db.collection("users").doc(uid).delete();
+//     console.log(`Successfully deleted Firestore document for ${uid}.`);
+//   } catch (error) {
+//     console.error(`Error deleting Firestore document for ${uid}:`, error);
+//   }
+// });
+
+// ปิดก่อนเนื่องจากมี Bug 
+// exports.deleteUserAccount = onCall(async (request) => {
+//   const uid = request.auth?.uid;
+
+//   if (!uid) {
+//     throw new HttpsError(
+//         "unauthenticated",
+//         "You must be logged in to delete your account.",
+//     );
+//   }
+
+//   try {
+//     console.log(`DELETING ACCOUNT for user: ${uid}`);
+//     await authAdmin.deleteUser(uid); // <-- ใช้ Admin SDK ลบ
+//     console.log(`Successfully deleted user ${uid} from Auth.`);
+//     return {success: true};
+//   } catch (error) {
+//     console.error(`Error deleting user ${uid}:`, error);
+//     throw new HttpsError(
+//         "internal",
+//         "An error occurred while deleting your account.",
+//     );
+//   }
+// });
+

@@ -83,14 +83,29 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        // ป้องกันการย้อนกลับไปยังสแต็คว่าง โดยพากลับไปหน้า Home แทน
+    // เปลี่ยน WillPopScope เป็น PopScope
+    return PopScope(
+      // 1. canPop: กำหนดว่าหน้าจอนี้อนุญาตให้ 'Pop' (ย้อนกลับ) ได้หรือไม่
+      //    เนื่องจากคุณต้องการ 'ป้องกัน' การย้อนกลับตามปกติ จึงตั้งค่าเป็น false
+      canPop: false,
+
+      // 2. onPopInvoked: จะถูกเรียกเมื่อมีการพยายาม 'Pop' (เช่น กดปุ่มย้อนกลับ)
+      //    ค่า didPop จะเป็น true หากการ Pop ถูกอนุญาตโดยระบบ (แต่เราตั้ง canPop เป็น false ไว้)
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        // เพิ่ม dynamic result
+        if (didPop) {
+          return;
+        }
+        // ตรรกะการเปลี่ยนหน้ายังคงเดิม
         Navigator.of(
           context,
         ).pushNamedAndRemoveUntil('/home', (route) => false);
-        return false;
+
+        // (Optional) คุณสามารถใช้ 'result' ตรงนี้ได้ หากหน้าจอนี้รับค่าคืน
+        // print('Received result: $result');
       },
+
+      // ส่วน Child (เนื้อหา) ยังคงเหมือนเดิม
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,

@@ -6,10 +6,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mtproject/models/parking_map_layout.dart';
 import 'package:mtproject/pages/login_page.dart';
 import 'package:mtproject/pages/profile_page.dart';
-
-import 'package:mtproject/pages/searching_page.dart';
 import 'package:mtproject/services/firebase_parking_service.dart';
-import 'package:mtproject/ui/adaptive_scaffold.dart';
+import 'package:mtproject/pages/searching_page.dart';
+//  import 'package:mtproject/services/theme_manager.dart'; // Import theme_manager
+import 'package:mtproject/ui/adaptive_scaffold.dart'; // Import adaptive_scaffold
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -30,10 +31,14 @@ class _HomePageState extends State<HomePage> {
   bool _isLoadingUser = true;
   StreamSubscription? _authSubscription;
 
+  bool _isConnected = true;
+  StreamSubscription? _connectivitySubscription;
+
   @override
   void initState() {
     super.initState();
     _listenToAuthChanges();
+    _listenToConnectivityChanges();
   }
 
   @override
@@ -64,7 +69,29 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // --- (ฟังก์ชัน _checkExistingHold, _startSearching, _watchSpot, _cancelCurrentHold ทั้งหมดเหมือนเดิม) ---
+  void _listenToConnectivityChanges() {
+    // เช็คสถานะครั้งแรกตอนเปิดหน้า
+    Connectivity().checkConnectivity().then((List<ConnectivityResult> result) {
+      _updateConnectionStatus(result);
+    });
+    // คอยฟังการเปลี่ยนแปลง
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+      _updateConnectionStatus,
+    );
+  }
+
+  // Helper function สำหรับอัปเดต state
+  void _updateConnectionStatus(List<ConnectivityResult> results) {
+    if (!mounted) return;
+    // ตรวจสอบว่ามี 'mobile' หรือ 'wifi' หรือไม่
+    bool connected =
+        results.contains(ConnectivityResult.mobile) ||
+        results.contains(ConnectivityResult.wifi);
+    setState(() {
+      _isConnected = connected;
+    });
+  }
+
   Future<void> _checkExistingHold() async {
     final user = _currentUser;
     if (user == null) return;
@@ -152,216 +179,205 @@ class _HomePageState extends State<HomePage> {
       }
     }
   }
-  // --- สิ้นสุดฟังก์ชันที่คัดลอกมา ---
 
-  // =================================================================
-  //  VVV      จุดแก้ไขหลัก: _buildHomePageContent      VVV
-  // =================================================================
-    Widget _buildHomePageContent(BuildContext context) {
-    final bool isDesktop = AdaptiveScaffold.useDesktopLayout(context);
-    return isDesktop
-        ? _buildDesktopHomeContent(context)
-        : _buildMobileHomeContent(context);
-  }
+  // --- _buildHomePageContent (เหมือนเดิมจากครั้งที่แล้ว) ---
+  Widget _buildHomePageContent(BuildContext context) {
+    final bool isLoggedIn = _currentUser != null;
+    final bool hasRecommendation = _recommendedSpotLocal != null;
+    final bool canSearch =
+        isLoggedIn && !_isSearching && !hasRecommendation && _isConnected;
 
-  Widget _buildDesktopHomeContent(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 5,
-            child: Card(
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 100.0),
+            child: ParkingMapLayout(recommendedSpot: _recommendedSpotLocal),
+          ),
+        ),
+        Positioned(
+          bottom: 16,
+          left: 16,
+          right: 16,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              StreamBuilder<QuerySnapshot>(
+                stream:
+                    FirebaseFirestore.instance
+                        .collection('parking_spots')
+                        .where('status', isEqualTo: 'available')
+                        .snapshots(),
+                builder: (context, snapshot) {
+                  final brightness = Theme.of(context).brightness;
+                  final bgColor =
+                      brightness == Brightness.dark
+                          ? Colors.black.withOpacity(0.7)
+                          : Colors.white.withOpacity(0.9);
+                  final textColor =
+                      brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.black;
+
+                  Widget content;
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    content = Text(
+                      'กำลังโหลด...',
+                      style: TextStyle(color: textColor, fontSize: 14),
+                    );
+                  } else if (snapshot.hasError) {
+                    content = Text(
+                      'โหลดข้อมูลไม่ได้',
+                      style: TextStyle(
+                        color: Colors.red.shade400,
+                        fontSize: 14,
+                      ),
+                    );
+                  } else {
+                    final available = snapshot.data?.docs.length ?? 0;
+                    content = Text(
+                      "พื้นที่ว่าง: $available/52",
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  }
+
+                  return Material(
+                    elevation: 4.0,
+                    borderRadius: BorderRadius.circular(8),
+                    color: bgColor,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: content,
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 8),
+
+              if (isLoggedIn && hasRecommendation)
+                Material(
+                  elevation: 4.0,
+                  borderRadius: BorderRadius.circular(8),
+                  color:
+                      Theme.of(context).brightness == Brightness.dark
+                          ? Colors.black.withOpacity(0.7)
+                          : Colors.white.withOpacity(0.9),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "แนะนำช่อง: $_recommendedSpotLocal",
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                        TextButton.icon(
+                          // ปิดปุ่มเมื่อ Offline
+                          onPressed: _isConnected ? _cancelCurrentHold : null,
+                          icon: Icon(
+                            Icons.cancel,
+                            color: _isConnected ? Colors.red : Colors.grey,
+                          ),
+                          label: Text(
+                            'ยกเลิก',
+                            style: TextStyle(
+                              color: _isConnected ? Colors.red : Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              const SizedBox(height: 16),
+
+              // VVV 9. ปรับแก้ปุ่มค้นหา VVV
+              if (_isLoadingUser)
+                const CircularProgressIndicator()
+              else if (isLoggedIn)
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed:
+                        canSearch ? _startSearching : null, // <-- ใช้ canSearch
+                    child: Text(
+                      _isSearching
+                          ? 'กำลังค้นหา...'
+                          : (hasRecommendation
+                              ? 'คุณมีช่องจอดที่แนะนำแล้ว'
+                              : (_isConnected
+                                  ? 'ค้นหาที่จอดรถ'
+                                  : 'Offline')), // <-- เปลี่ยนข้อความ
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+
+        // VVV 10. เพิ่มแถบเตือน Offline VVV
+        if (!_isConnected)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Material(
+              color: Colors.red.shade700,
               elevation: 2,
-              clipBehavior: Clip.hardEdge,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: ParkingMapLayout(
-                  recommendedSpot: _recommendedSpotLocal,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                child: Text(
+                  'คุณกำลังออฟไลน์ ไม่สามารถใช้งานฟังก์ชันจองได้',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 24),
-          SizedBox(
-            width: 320,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildAvailabilityStatus(context, isDesktop: true),
-                  const SizedBox(height: 16),
-                  if (_currentUser != null && _recommendedSpotLocal != null)
-                    _buildRecommendationCard(context, isDesktop: true),
-                  const SizedBox(height: 24),
-                  _buildPrimaryActionButton(context, isDesktop: true),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMobileHomeContent(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Card(
-          elevation: 4,
-          clipBehavior: Clip.hardEdge,
-          child: SizedBox(
-            height: 260,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: ParkingMapLayout(
-                recommendedSpot: _recommendedSpotLocal,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildAvailabilityStatus(context, isDesktop: false),
-        const SizedBox(height: 12),
-        if (_currentUser != null && _recommendedSpotLocal != null)
-          _buildRecommendationCard(context, isDesktop: false),
-        const SizedBox(height: 16),
-        _buildPrimaryActionButton(context, isDesktop: false),
       ],
     );
   }
 
-  Widget _buildAvailabilityStatus(BuildContext context,
-      {required bool isDesktop}) {
-    final theme = Theme.of(context);
-    final onSurface = theme.colorScheme.onSurface;
-    final errorColor = theme.colorScheme.error;
+  // Helper function สำหรับคำนวณ Padding ด้านล่างของแผนที่
+  double _getBottomPadding() {
+    bool isLoggedIn = _currentUser != null;
+    bool hasRecommendation = _recommendedSpotLocal != null;
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('parking_spots')
-          .where('status', isEqualTo: 'available')
-          .snapshots(),
-      builder: (context, snapshot) {
-        String message;
-        Color textColor = onSurface;
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          message = 'กำลังโหลด...';
-        } else if (snapshot.hasError) {
-          message = 'โหลดข้อมูลไม่ได้';
-          textColor = errorColor;
-        } else {
-          final available = snapshot.data?.docs.length ?? 0;
-          message = 'พื้นที่ว่าง: $available/52';
-        }
-
-        return Card(
-          elevation: isDesktop ? 1 : 4,
-          color: theme.colorScheme.surfaceVariant,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Text(
-              message,
-              style: theme.textTheme.titleMedium?.copyWith(color: textColor),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildRecommendationCard(BuildContext context,
-      {required bool isDesktop}) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    return Card(
-      elevation: isDesktop ? 1 : 3,
-      color: colorScheme.secondaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'แนะนำช่อง: $_recommendedSpotLocal',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: colorScheme.onSecondaryContainer,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                icon: Icon(
-                  Icons.cancel,
-                  color: colorScheme.error,
-                ),
-                label: const Text('ยกเลิก'),
-                style: TextButton.styleFrom(
-                  foregroundColor: colorScheme.error,
-                ),
-                onPressed: _cancelCurrentHold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPrimaryActionButton(BuildContext context,
-      {required bool isDesktop}) {
-    if (_isLoadingUser) {
-      return const Center(child: CircularProgressIndicator());
+    // คำนวณความสูงโดยประมาณของ UI ด้านล่าง
+    double baseHeight = 16 + 16 + 50; // Padding + SizedBox + Button
+    if (isLoggedIn && hasRecommendation) {
+      baseHeight += 60; // ความสูงโดยประมาณของ Material "แนะนำช่อง"
     }
-
-    final bool isLoggedIn = _currentUser != null;
-    final bool hasRecommendation = _recommendedSpotLocal != null;
-
-    VoidCallback? onPressed;
-    String label;
-
-    if (!isLoggedIn) {
-      onPressed = () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginPage()),
-        );
-      };
-      label = 'เข้าสู่ระบบเพื่อค้นหาที่จอด';
-    } else if (_isSearching) {
-      onPressed = null;
-      label = 'กำลังค้นหา...';
-    } else if (hasRecommendation) {
-      onPressed = null;
-      label = 'คุณมีช่องจอดที่แนะนำแล้ว';
-    } else {
-      onPressed = _startSearching;
-      label = 'ค้นหาที่จอดรถ';
+    if (_isLoadingUser || !isLoggedIn) {
+      baseHeight += 50; // ความสูงโดยประมาณของ Loading/ปุ่ม Login
     }
-
-    return SizedBox(
-      width: double.infinity,
-      height: isDesktop ? 48 : 50,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        child: Text(label),
-      ),
-    );
+    return baseHeight + 40; // เพิ่ม Padding พิเศษ
   }
-  // =================================================================
-  //  ^^^      สิ้นสุดการแก้ไข _buildHomePageContent      ^^^
-  // =================================================================
 
   @override
   Widget build(BuildContext context) {
-    // --- สร้าง List ของหน้าต่างๆ (เหมือนเดิม) ---
     final List<Widget> pages = [
-       _buildHomePageContent(context),
+      _buildHomePageContent(context),
       _currentUser != null ? const ProfilePage() : const LoginPage(),
     ];
 
@@ -369,6 +385,45 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text('Smart Parking'),
+        // VVV 11. ปิดปุ่ม Profile ถ้า Offline VVV
+        actions: [
+          if (_isLoadingUser)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else if (_currentUser != null)
+            IconButton(
+              icon: const Icon(Icons.person),
+              tooltip: 'โปรไฟล์',
+              // ปิดปุ่มเมื่อ Offline
+              onPressed:
+                  _isConnected
+                      ? () {
+                        setState(() => _currentIndex = 1);
+                      }
+                      : null,
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ElevatedButton(
+                // ปิดปุ่มเมื่อ Offline
+                onPressed:
+                    _isConnected
+                        ? () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LoginPage()),
+                        )
+                        : null,
+                child: const Text('เข้าสู่ระบบ'),
+              ),
+            ),
+        ],
       ),
       body: IndexedStack(index: _currentIndex, children: pages),
       currentIndex: _currentIndex,
@@ -377,14 +432,24 @@ class _HomePageState extends State<HomePage> {
         AdaptiveNavigationItem(icon: Icons.person, label: 'โปรไฟล์'),
       ],
       onDestinationSelected: (index) {
+        // VVV 12. ปิดการไปหน้า Profile ถ้า Offline VVV
+        if (index == 1 && !_isConnected) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('คุณกำลังออฟไลน์ ไม่สามารถดูโปรไฟล์ได้'),
+            ),
+          );
+          return; // ไม่ต้องทำอะไร
+        }
+
         if (index == 1 && _currentUser == null) {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const LoginPage()),
           );
-          return;
+        } else {
+          setState(() => _currentIndex = index);
         }
-        setState(() => _currentIndex = index);
       },
     );
   }
