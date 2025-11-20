@@ -1,6 +1,9 @@
 // lib/data/parking_layout_config.dart
 import 'package:flutter/material.dart';
 
+/// Total number of physical parking spots rendered in the layout.
+const int kTotalParkingSpots = 52;
+
 /// -----------------------------------------------------------------
 /// == ตัวแปรหลักสำหรับปรับตำแหน่ง ==
 ///

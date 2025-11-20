@@ -2,9 +2,10 @@
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {onDocumentUpdated} = require("firebase-functions/v2/firestore");
+const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {initializeApp} = require("firebase-admin/app");
-const {getFirestore} = require("firebase-admin/firestore");
-const {onUserDeleted} = require("firebase-functions/v2/auth");
+const {getFirestore, FieldValue} = require("firebase-admin/firestore");
+// const {onUserDeleted} = require("firebase-functions/v2/auth");
 const {getAuth} = require("firebase-admin/auth");
 
 // Initialize Firebase Admin SDK (ครั้งเดียว)
@@ -29,13 +30,42 @@ exports.recommendAndHold = onCall(async (request) => {
     );
   }
 
+  const now = new Date();
   const result = await db.runTransaction(async (transaction) => {
     // Check existing hold
-    const existingHoldQuery = db.collection("parking_spots").where("hold_by", "==", uid);
+    const existingHoldQuery = db.collection("parking_spots")
+        .where("hold_by", "==", uid)
+        .limit(1);
     const existingHoldSnap = await transaction.get(existingHoldQuery);
     if (!existingHoldSnap.empty) {
-      console.log(`User ${uid} already has a held spot.`);
-      return {ok: false, reason: "Already has a held spot"};
+      const existingDoc = existingHoldSnap.docs[0];
+      const existingData = existingDoc.data();
+      const holdUntil = existingData.hold_until;
+      const status = (existingData.status || "").toString().toLowerCase();
+      let resolvedId = existingData.id;
+      if (resolvedId === undefined) {
+        resolvedId = Number.parseInt(existingDoc.id, 10);
+      }
+      if (Number.isNaN(Number(resolvedId))) {
+        resolvedId = existingDoc.id;
+      }
+      if (status === "held" && holdUntil && holdUntil > now) {
+        console.log(`User ${uid} reusing held spot ${existingDoc.id}`);
+        return {
+          ok: true,
+          docId: existingDoc.id,
+          id: resolvedId,
+          hold_expires_at: holdUntil.toISOString(),
+          reused: true,
+        };
+      }
+
+      console.log(`Cleaning up expired hold for ${uid} on spot ${existingDoc.id}`);
+      transaction.update(existingDoc.ref, {
+        status: "available",
+        hold_by: null,
+        hold_until: null,
+      });
     }
 
     // Find available spot
@@ -88,6 +118,17 @@ exports.recommendAndHold = onCall(async (request) => {
   return result;
 });
 
+exports.sendUserNotificationEmail = onCall(async (request) => {
+  const {email, type = "login"} = request.data || {};
+  if (!email) {
+    throw new HttpsError("invalid-argument", "Email is required");
+  }
+  const normalizedType = type.toString().toLowerCase();
+  console.log(`TODO: send ${normalizedType} email notification to ${email}`);
+  console.log("Integrate provider such as SendGrid/Mailgun here.");
+  return {ok: true};
+});
+
 /**
  * V2 Firestore Trigger: Cleans up hold info when a spot is taken.
  */
@@ -106,6 +147,43 @@ exports.onSpotTaken = onDocumentUpdated("parking_spots/{spotId}", async (event) 
       hold_until: null,
     });
   }
+  return null;
+});
+
+exports.onParkingSpotUpdated = onDocumentUpdated("parking_spots/{spotId}", async (event) => {
+  const beforeData = event.data.before.data();
+  const afterData = event.data.after.data();
+
+  // ถ้าข้อมูลเหมือนเดิมเป๊ะ (ไม่มีอะไรเปลี่ยน) ก็ไม่ต้องทำอะไร
+  if (!beforeData || !afterData) return null;
+
+  const updates = {}; // เก็บรายการที่จะแก้ไข
+
+  // --- Logic 1: อัปเดตเวลาเมื่อสถานะเปลี่ยน ---
+  // เช็คว่า status เปลี่ยนไปจากเดิมหรือไม่
+  if (beforeData.status !== afterData.status) {
+    console.log(`Spot ${event.params.spotId} status changed: ${beforeData.status} -> ${afterData.status}`);
+    // ใส่เวลาปัจจุบันของ Server ลงไป
+    updates.last_updated = FieldValue.serverTimestamp();
+  }
+
+  // --- Logic 2: เคลียร์การจอง (แม่บ้าน) ---
+  const statusChanged = beforeData.status !== afterData.status;
+  const isNowTaken = afterData.status === "occupied" || afterData.status === "unavailable";
+  const wasHeld = beforeData.hold_by != null;
+
+  if (statusChanged && isNowTaken && wasHeld) {
+    console.log(`Clearing hold info for spot ${event.params.spotId}.`);
+    updates.hold_by = null;
+    updates.hold_until = null;
+  }
+
+  // --- บันทึกข้อมูล (ถ้ามีอะไรต้องแก้ไข) ---
+  if (Object.keys(updates).length > 0) {
+    // ใช้ update เพื่อแก้ไขเฉพาะ field ที่ระบุ
+    return event.data.after.ref.update(updates);
+  }
+
   return null;
 });
 
@@ -147,7 +225,7 @@ exports.syncAuthEmailToFirestoreOnUpdate = onDocumentUpdated("users/{userId}", a
 //   }
 // });
 
-// ปิดก่อนเนื่องจากมี Bug 
+// ปิดก่อนเนื่องจากมี Bug
 // exports.deleteUserAccount = onCall(async (request) => {
 //   const uid = request.auth?.uid;
 
@@ -172,3 +250,28 @@ exports.syncAuthEmailToFirestoreOnUpdate = onDocumentUpdated("users/{userId}", a
 //   }
 // });
 
+// Periodically release Held slots that exceeded the 15 minute SLA to keep the
+// map accurate even when no client is online.
+exports.releaseExpiredHolds = onSchedule("every 5 minutes", async () => {
+  const now = new Date();
+  const expiredSnap = await db.collection("parking_spots")
+      .where("status", "==", "held")
+      .where("hold_until", "<=", now)
+      .get();
+
+  if (expiredSnap.empty) {
+    return null;
+  }
+
+  const batch = db.batch();
+  expiredSnap.docs.forEach((doc) => {
+    console.log(`Releasing expired hold on spot ${doc.id}`);
+    batch.update(doc.ref, {
+      status: "available",
+      hold_by: null,
+      hold_until: null,
+    });
+  });
+  await batch.commit();
+  return null;
+});

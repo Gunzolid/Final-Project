@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
   // อัปเดตข้อมูลโปรไฟล์ของผู้ใช้
   Future<void> updateUserProfile(String uid, String name) async {
@@ -36,6 +38,7 @@ class FirebaseService {
       rethrow;
     }
   }
+
   /// Deletes both the Firebase Auth user and the associated Firestore profile.
   ///
   /// Auth deletion is attempted first so that we never remove profile data when
@@ -65,4 +68,28 @@ class FirebaseService {
     await _firestore.collection('users').doc(uid).delete();
   }
 
+  /// Returns true when the provided user document carries the admin role.
+  Future<bool> isAdmin(String uid) async {
+    final doc = await _firestore.collection('users').doc(uid).get();
+    final role = (doc.data()?['role'] as String?)?.toLowerCase();
+    return role == 'admin';
+  }
+
+  /// Triggers the Cloud Function that sends (stubbed) notification emails for
+  /// login and signup events. The function currently only logs a message, but
+  /// this keeps the client wired up for future integrations.
+  Future<void> sendUserNotificationEmail({
+    required String email,
+    required String type,
+  }) async {
+    try {
+      await _functions.httpsCallable('sendUserNotificationEmail').call({
+        'email': email,
+        'type': type,
+      });
+    } catch (e, st) {
+      debugPrint('sendUserNotificationEmail failed: $e');
+      debugPrintStack(stackTrace: st);
+    }
+  }
 }

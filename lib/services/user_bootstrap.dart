@@ -14,6 +14,7 @@ class UserBootstrap {
         'email': user.email ?? '',
         'name': user.displayName ?? '',
         'created_at': FieldValue.serverTimestamp(),
+        'role': 'user',
       });
     }
   }

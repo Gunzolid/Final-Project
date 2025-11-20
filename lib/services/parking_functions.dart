@@ -8,7 +8,7 @@ class ParkingFunctions {
   static Future<({String docId, int id, DateTime? holdExpiresAt})?> recommend({
     int entryX = 0,
     int entryY = 0,
-    int holdSeconds = 120,
+    int holdSeconds = 900,
   }) async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     // VVV แก้ไขบรรทัดนี้ VVV

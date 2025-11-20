@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mtproject/models/parking_map_layout.dart';
+import 'package:mtproject/models/parking_layout_config.dart';
 import 'package:mtproject/pages/login_page.dart';
 import 'package:mtproject/pages/profile_page.dart';
 import 'package:mtproject/services/firebase_parking_service.dart';
 import 'package:mtproject/pages/searching_page.dart';
-//  import 'package:mtproject/services/theme_manager.dart'; // Import theme_manager
 import 'package:mtproject/ui/adaptive_scaffold.dart'; // Import adaptive_scaffold
 import 'package:connectivity_plus/connectivity_plus.dart';
 
@@ -26,6 +26,7 @@ class _HomePageState extends State<HomePage> {
   bool _isSearching = false;
   int? _recommendedSpotLocal;
   StreamSubscription? _recSub;
+  bool _isRecommendationDialogVisible = false;
 
   User? _currentUser;
   bool _isLoadingUser = true;
@@ -33,6 +34,7 @@ class _HomePageState extends State<HomePage> {
 
   bool _isConnected = true;
   StreamSubscription? _connectivitySubscription;
+  final FirebaseParkingService _parkingService = FirebaseParkingService();
 
   @override
   void initState() {
@@ -45,6 +47,7 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     _recSub?.cancel();
     _authSubscription?.cancel();
+    _connectivitySubscription?.cancel();
     super.dispose();
   }
 
@@ -71,9 +74,7 @@ class _HomePageState extends State<HomePage> {
 
   void _listenToConnectivityChanges() {
     // เช็คสถานะครั้งแรกตอนเปิดหน้า
-    Connectivity().checkConnectivity().then((List<ConnectivityResult> result) {
-      _updateConnectionStatus(result);
-    });
+    Connectivity().checkConnectivity().then(_updateConnectionStatus);
     // คอยฟังการเปลี่ยนแปลง
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
       _updateConnectionStatus,
@@ -81,12 +82,21 @@ class _HomePageState extends State<HomePage> {
   }
 
   // Helper function สำหรับอัปเดต state
-  void _updateConnectionStatus(List<ConnectivityResult> results) {
+  void _updateConnectionStatus(dynamic value) {
+    final List<ConnectivityResult> results;
+    if (value is ConnectivityResult) {
+      results = [value];
+    } else if (value is List<ConnectivityResult>) {
+      results = value;
+    } else {
+      results = const [ConnectivityResult.none];
+    }
     if (!mounted) return;
-    // ตรวจสอบว่ามี 'mobile' หรือ 'wifi' หรือไม่
-    bool connected =
-        results.contains(ConnectivityResult.mobile) ||
-        results.contains(ConnectivityResult.wifi);
+    final connected = results.any((result) {
+      return result == ConnectivityResult.mobile ||
+          result == ConnectivityResult.wifi ||
+          result == ConnectivityResult.ethernet;
+    });
     setState(() {
       _isConnected = connected;
     });
@@ -95,21 +105,10 @@ class _HomePageState extends State<HomePage> {
   Future<void> _checkExistingHold() async {
     final user = _currentUser;
     if (user == null) return;
-    final query =
-        await FirebaseFirestore.instance
-            .collection('parking_spots')
-            .where('hold_by', isEqualTo: user.uid)
-            .limit(1)
-            .get();
-    if (query.docs.isNotEmpty) {
-      final doc = query.docs.first;
-      final spotId = int.tryParse(doc.id);
-      if (spotId != null && mounted) {
-        setState(() {
-          _recommendedSpotLocal = spotId;
-        });
-        _watchSpot(spotId);
-      }
+    final existing = await _parkingService.getActiveHeldSpotId(user.uid);
+    if (existing != null && mounted) {
+      setState(() => _recommendedSpotLocal = existing);
+      _watchSpot(existing);
     }
   }
 
@@ -141,27 +140,53 @@ class _HomePageState extends State<HomePage> {
 
   void _watchSpot(int spotId) {
     _recSub?.cancel();
-    _recSub = FirebaseParkingService().watchRecommendation(spotId).listen((
+    _recSub = _parkingService.watchRecommendation(spotId).listen((
       recommendation,
     ) {
       if (!recommendation.isActive) {
         final msg = recommendation.reason ?? 'การจองสิ้นสุดลงแล้ว';
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(msg)));
           setState(() => _recommendedSpotLocal = null);
+          // แจ้งเตือนผู้ใช้ทันทีเมื่อ Cloud Firestore แจ้งว่าการแนะนำหมดอายุหรือถูกยกเลิก
+          _showRecommendationEndedDialog(msg);
         }
         _recSub?.cancel();
       }
     });
   }
 
+  Future<void> _showRecommendationEndedDialog(String message) async {
+    if (_isRecommendationDialogVisible || !mounted) return;
+    _isRecommendationDialogVisible = true;
+    final bool? retry = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('คำแนะนำหมดอายุ'),
+            content: Text('$message\nโปรดค้นหาใหม่เพื่อรับช่องล่าสุด.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('ปิด'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('ค้นหาอีกครั้ง'),
+              ),
+            ],
+          ),
+    );
+    _isRecommendationDialogVisible = false;
+    if (retry == true && _isConnected) {
+      _startSearching();
+    }
+  }
+
   Future<void> _cancelCurrentHold() async {
     if (_currentUser == null || _recommendedSpotLocal == null) return;
     final spotToCancel = _recommendedSpotLocal!;
     try {
-      await FirebaseParkingService().cancelHold(spotToCancel);
+      await _parkingService.cancelHold(spotToCancel);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('ยกเลิกการจองช่อง $spotToCancel สำเร็จ')),
@@ -192,7 +217,11 @@ class _HomePageState extends State<HomePage> {
         Positioned.fill(
           child: Padding(
             padding: const EdgeInsets.only(bottom: 100.0),
-            child: ParkingMapLayout(recommendedSpot: _recommendedSpotLocal),
+            child: ParkingMapLayout(
+              // เมื่อออฟไลน์ เราแสดงผังสีเทาและไม่ให้ไฮไลต์ช่องใด ๆ
+              recommendedSpot: _isConnected ? _recommendedSpotLocal : null,
+              offlineMode: !_isConnected,
+            ),
           ),
         ),
         Positioned(
@@ -236,7 +265,7 @@ class _HomePageState extends State<HomePage> {
                   } else {
                     final available = snapshot.data?.docs.length ?? 0;
                     content = Text(
-                      "พื้นที่ว่าง: $available/52",
+                      "พื้นที่ว่าง: $available/$kTotalParkingSpots",
                       style: TextStyle(
                         color: textColor,
                         fontSize: 16,
@@ -356,22 +385,6 @@ class _HomePageState extends State<HomePage> {
           ),
       ],
     );
-  }
-
-  // Helper function สำหรับคำนวณ Padding ด้านล่างของแผนที่
-  double _getBottomPadding() {
-    bool isLoggedIn = _currentUser != null;
-    bool hasRecommendation = _recommendedSpotLocal != null;
-
-    // คำนวณความสูงโดยประมาณของ UI ด้านล่าง
-    double baseHeight = 16 + 16 + 50; // Padding + SizedBox + Button
-    if (isLoggedIn && hasRecommendation) {
-      baseHeight += 60; // ความสูงโดยประมาณของ Material "แนะนำช่อง"
-    }
-    if (_isLoadingUser || !isLoggedIn) {
-      baseHeight += 50; // ความสูงโดยประมาณของ Loading/ปุ่ม Login
-    }
-    return baseHeight + 40; // เพิ่ม Padding พิเศษ
   }
 
   @override

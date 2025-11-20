@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:mtproject/services/parking_functions.dart';
 
 // 1. อัปเกรด Class ให้เก็บข้อมูลสถานะได้
 class RecommendationStatus {
@@ -9,6 +10,16 @@ class RecommendationStatus {
   final String? reason;
 
   RecommendationStatus({required this.isActive, this.spotStatus, this.reason});
+}
+
+class RecommendationResult {
+  final int spotId;
+  final bool reusedExistingHold;
+
+  const RecommendationResult({
+    required this.spotId,
+    this.reusedExistingHold = false,
+  });
 }
 
 class FirebaseParkingService {
@@ -54,14 +65,22 @@ class FirebaseParkingService {
       final data = doc.data()!;
       final holdBy = data['hold_by'];
       final holdUntil = data['hold_until'] as Timestamp?;
-      final currentStatus = data['status'] as String?;
+      final currentStatus = (data['status'] as String?)?.toLowerCase();
 
       // *** เงื่อนไขใหม่: ถ้าช่องจอดถูกใช้งานแล้ว ถือว่าการจองสำเร็จและสิ้นสุดลง ***
       if (currentStatus == 'occupied') {
         return RecommendationStatus(
           isActive: false,
           spotStatus: 'occupied',
-          reason: 'คุณเข้าจอดเรียบร้อยแล้ว',
+          reason: 'ช่องโดนเข้าจอดเรียบร้อยแล้ว',
+        );
+      }
+
+      if (currentStatus == 'unavailable') {
+        return RecommendationStatus(
+          isActive: false,
+          spotStatus: 'unavailable',
+          reason: 'ช่องถูกปิดใช้งาน โปรดลองค้นหาใหม่',
         );
       }
 
@@ -185,5 +204,64 @@ class FirebaseParkingService {
     } catch (e) {
       rethrow; // ส่งต่อ Error ให้ UI จัดการ
     }
+  }
+
+  /// Returns the currently held spot for [uid] if the hold is still active.
+  /// Expired holds are cleared automatically before returning null.
+  Future<int?> getActiveHeldSpotId(String uid) async {
+    final query =
+        await _firestore
+            .collection('parking_spots')
+            .where('hold_by', isEqualTo: uid)
+            .limit(1)
+            .get();
+    if (query.docs.isEmpty) return null;
+    final doc = query.docs.first;
+    final data = doc.data();
+    final status = (data['status'] as String?)?.toLowerCase();
+    final holdUntil = data['hold_until'] as Timestamp?;
+    final now = Timestamp.now();
+    final bool isExpired = holdUntil != null && now.compareTo(holdUntil) > 0;
+
+    if (isExpired || status != 'held') {
+      await doc.reference.update({
+        'status': 'available',
+        'hold_by': null,
+        'hold_until': null,
+      });
+      return null;
+    }
+    final dynamic rawId = data['id'];
+    if (rawId is int) {
+      return rawId;
+    }
+    if (rawId is String) {
+      final parsed = int.tryParse(rawId);
+      if (parsed != null) return parsed;
+    }
+    return int.tryParse(doc.id);
+  }
+
+  /// Client helper that reuses an existing hold before calling the Cloud
+  /// Function to request a new recommendation. This prevents double holds per
+  /// user while keeping the server-side guard in place.
+  Future<RecommendationResult?> recommendAndHoldClient({
+    int holdSeconds = 900,
+  }) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      throw Exception('User is not logged in');
+    }
+
+    final existing = await getActiveHeldSpotId(uid);
+    if (existing != null) {
+      return RecommendationResult(spotId: existing, reusedExistingHold: true);
+    }
+
+    final result = await ParkingFunctions.recommend(holdSeconds: holdSeconds);
+    if (result == null) {
+      return null;
+    }
+    return RecommendationResult(spotId: result.id);
   }
 }

@@ -8,8 +8,16 @@ import 'parking_box.dart';
 
 class ParkingMapLayout extends StatelessWidget {
   final int? recommendedSpot;
+  final bool offlineMode;
 
-  const ParkingMapLayout({super.key, this.recommendedSpot});
+  const ParkingMapLayout({
+    super.key,
+    this.recommendedSpot,
+    this.offlineMode = false,
+  }) : assert(
+         kParkingLayoutXY.length == kTotalParkingSpots,
+         'Parking layout must list all $kTotalParkingSpots spots.',
+       );
 
   @override
   Widget build(BuildContext context) {

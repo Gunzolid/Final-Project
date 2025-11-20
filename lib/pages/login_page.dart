@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:email_validator/email_validator.dart';
 import 'package:mtproject/pages/sign_up_page.dart';
+import 'package:mtproject/services/firebase_service.dart';
 import 'package:mtproject/services/user_bootstrap.dart';
 
 class LoginPage extends StatefulWidget {
@@ -13,10 +15,12 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
   final _pass = TextEditingController();
   bool _loading = false;
   bool _navigated = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -27,7 +31,13 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _onLogin() async {
     if (_loading) return;
-    setState(() => _loading = true);
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+    });
 
     try {
       // 1) sign in + ใส่ timeout กันแอพค้าง
@@ -56,6 +66,15 @@ class _LoginPageState extends State<LoginPage> {
           isAdmin ? '/admin' : '/home',
           (route) => false,
         );
+
+        final email = FirebaseAuth.instance.currentUser?.email;
+        if (email != null && email.isNotEmpty) {
+          // Fire-and-forget – UI ไม่ต้องรอให้ Cloud Function ส่งอีเมลสำเร็จ
+          FirebaseService().sendUserNotificationEmail(
+            email: email,
+            type: 'login',
+          );
+        }
       }
     } on TimeoutException {
       if (!mounted) return;
@@ -68,9 +87,29 @@ class _LoginPageState extends State<LoginPage> {
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เข้าสู่ระบบล้มเหลว: ${e.message ?? e.code}')),
-      );
+      String displayError = 'เข้าสู่ระบบล้มเหลว: ${e.message ?? e.code}';
+      if (e.code == 'user-not-found') {
+        displayError = 'ไม่พบบัญชีผู้ใช้นี้ โปรดสมัครสมาชิกก่อน';
+      } else if (e.code == 'wrong-password') {
+        displayError = 'รหัสผ่านไม่ถูกต้อง';
+      }
+      setState(() => _errorMessage = displayError);
+      if (e.code == 'user-not-found') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(displayError),
+            action: SnackBarAction(
+              label: 'สมัครสมาชิก',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SignUpPage()),
+                );
+              },
+            ),
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -113,52 +152,77 @@ class _LoginPageState extends State<LoginPage> {
         ),
         body: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 320),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: _email,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _pass,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Password'),
-                ),
-                const SizedBox(height: 20),
-                _loading
-                    ? const CircularProgressIndicator()
-                    : SizedBox(
-                      width: double.infinity,
-                      height: 44,
-                      child: ElevatedButton(
-                        onPressed: _onLogin,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey[300],
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: _email,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(labelText: 'Email'),
+                    validator: (value) {
+                      final email = value?.trim() ?? '';
+                      if (email.isEmpty) {
+                        return 'กรุณากรอกอีเมล';
+                      }
+                      if (!EmailValidator.validate(email)) {
+                        return 'รูปแบบอีเมลไม่ถูกต้อง';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _pass,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Password'),
+                    validator: (value) {
+                      if ((value ?? '').isEmpty) {
+                        return 'กรุณากรอกรหัสผ่าน';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  if (_errorMessage != null)
+                    Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  const SizedBox(height: 20),
+                  _loading
+                      ? const CircularProgressIndicator()
+                      : SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: ElevatedButton(
+                          onPressed: _onLogin,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[300],
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            'Login',
+                            style: TextStyle(color: Colors.black),
                           ),
                         ),
-                        child: const Text(
-                          'Login',
-                          style: TextStyle(color: Colors.black),
-                        ),
                       ),
-                    ),
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SignUpPage()),
-                    );
-                  },
-                  child: const Text('สร้างบัญชีใหม่'),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SignUpPage()),
+                      );
+                    },
+                    child: const Text('สร้างบัญชีใหม่'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

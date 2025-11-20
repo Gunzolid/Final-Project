@@ -6,7 +6,6 @@ import 'admin_parking_box.dart';
 
 class AdminParkingMapLayout extends StatelessWidget {
   const AdminParkingMapLayout({super.key});
-
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;

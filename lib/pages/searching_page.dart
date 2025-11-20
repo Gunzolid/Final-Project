@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:mtproject/services/parking_functions.dart'; // โหมดจริง (Cloud Functions)
-// import 'package:mtproject/services/firebase_parking_service.dart'; // โหมด dev (client)
+import 'package:mtproject/services/firebase_parking_service.dart';
 import 'package:mtproject/ui/recommend_dialog.dart';
 
 class SearchingPage extends StatefulWidget {
@@ -12,7 +11,7 @@ class SearchingPage extends StatefulWidget {
 }
 
 class _SearchingPageState extends State<SearchingPage> {
-  // final _svc = FirebaseParkingService();
+  final FirebaseParkingService _parkingService = FirebaseParkingService();
   bool _done = false; // กัน pop ซ้ำ
 
   @override
@@ -23,9 +22,9 @@ class _SearchingPageState extends State<SearchingPage> {
 
   Future<void> _startSearching() async {
     try {
-      final result = await ParkingFunctions.recommend(
-        holdSeconds: 900, // 15 นาที
-      ).timeout(const Duration(seconds: 8));
+      final RecommendationResult? result = await _parkingService
+          .recommendAndHoldClient(holdSeconds: 900)
+          .timeout(const Duration(seconds: 10));
 
       if (mounted && !_done) {
         if (result != null) {
@@ -36,14 +35,17 @@ class _SearchingPageState extends State<SearchingPage> {
           // =================================================================
           // แสดง Dialog แนะนำ
           await showRecommendDialog(
-            // <-- เรียกฟังก์ชันโดยตรง
             context,
-            recommendedIds: [result.id], // <-- ส่ง ID ในรูปแบบ List
+            recommendedIds: [result.spotId],
+            helperMessage:
+                result.reusedExistingHold
+                    ? 'คุณมีการจองเดิมที่ยังไม่หมดเวลา'
+                    : null,
           );
 
           // หลังจาก Dialog ปิด ให้ Pop กลับไปหน้า Home
           if (mounted) {
-            Navigator.pop<int>(context, result.id);
+            Navigator.pop<int>(context, result.spotId);
           }
           // =================================================================
         } else {

@@ -17,26 +17,14 @@ class AdminParkingBox extends StatelessWidget {
     this.direction = Axis.vertical,
   });
 
-  // ฟังก์ชันหา status ถัดไป (ย้ายมาไว้ข้างนอก build หรือจะไว้ข้างในก็ได้)
-  String _nextStatus(String current) {
-    if (current == 'available') return 'occupied';
-    if (current == 'occupied') return 'unavailable';
-    if (current == 'unavailable' || current == 'held') return 'available';
-    return 'available'; // Default case
-  }
-
   @override
   Widget build(BuildContext context) {
     // สร้าง Service ภายใน build method (คล้าย parking_box ที่ใช้ FirebaseAuth.instance)
     final FirebaseParkingService parkingService = FirebaseParkingService();
 
     // --- สี (ยังคง Hardcode หรือจะดึงจาก Theme ก็ได้) ---
-    const availableColor = Colors.green;
-    const occupiedColor = Colors.red;
-    const unavailableColor = Colors.grey;
-    const heldColor = Colors.orange; // เพิ่ม held เผื่อ Admin เห็น
-    const defaultColor = Colors.black;
     const textColor = Colors.white;
+    const statuses = ['available', 'occupied', 'unavailable', 'held'];
 
     return StreamBuilder<DocumentSnapshot>(
       stream:
@@ -85,67 +73,160 @@ class AdminParkingBox extends StatelessWidget {
 
         // --- ส่วนแสดงผลหลัก ---
         final data = snapshot.data!.data() as Map<String, dynamic>;
-        final status = (data['status'] ?? 'unknown') as String;
+        final status = (data['status'] ?? 'unknown').toString().toLowerCase();
 
-        Color color;
-        switch (status) {
-          case 'available':
-            color = availableColor;
-            break;
-          case 'occupied':
-            color = occupiedColor;
-            break;
-          case 'unavailable':
-            color = unavailableColor;
-            break;
-          case 'held':
-            color = heldColor;
-            break; // เพิ่ม held
-          default:
-            color = defaultColor;
-        }
+        final note = data['note'] as String?;
+        final tooltipText =
+            note != null && note.isNotEmpty
+                ? 'สถานะ: $status\nหมายเหตุ: $note'
+                : 'สถานะ: $status';
 
-        return GestureDetector(
-          onTap: () async {
-            try {
-              final nextStatus = _nextStatus(status);
-              final Map<String, dynamic> updateData = {'status': nextStatus};
-
-              if (nextStatus == 'occupied') {
-                updateData['start_time'] = Timestamp.now();
-              } else {
-                updateData['start_time'] = null;
-              }
-              // ใช้ parkingService ที่สร้างใน build method
-              await parkingService.updateParkingStatus(docId, updateData);
-            } catch (e) {
-              if (ScaffoldMessenger.maybeOf(context) != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('เปลี่ยนสถานะไม่สำเร็จ: $e')),
-                );
-              } else {
-                debugPrint('Error updating status for $docId: $e');
-              }
-            }
-          },
-          child: Container(
+        return Tooltip(
+          message: tooltipText,
+          child: SizedBox(
             width: direction == Axis.vertical ? 30 : 45,
             height: direction == Axis.vertical ? 45 : 30,
-            decoration: BoxDecoration(
-              color: color,
-              border: Border.all(color: Colors.white),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            alignment: Alignment.center,
-            child: FittedBox(
-              child: Text(
-                '$id',
-                style: const TextStyle(color: textColor, fontSize: 12),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: status,
+                isExpanded: true,
+                icon: const Icon(
+                  Icons.arrow_drop_down,
+                  size: 12,
+                  color: Colors.white,
+                ),
+                items:
+                    statuses
+                        .map(
+                          (item) => DropdownMenuItem(
+                            value: item,
+                            child: Text(item.toUpperCase()),
+                          ),
+                        )
+                        .toList(),
+                selectedItemBuilder: (context) {
+                  return statuses
+                      .map(
+                        (item) => _buildBox(
+                          _statusColor(item),
+                          textColor: textColor,
+                          hasNote:
+                              item == status && note != null && note.isNotEmpty,
+                        ),
+                      )
+                      .toList();
+                },
+                onChanged: (value) async {
+                  if (value == null || value == status) return;
+                  try {
+                    final Map<String, dynamic> updateData = {'status': value};
+                    if (value == 'occupied') {
+                      updateData['start_time'] = Timestamp.now();
+                    } else if (value == 'available') {
+                      updateData['start_time'] = null;
+                    }
+                    if (value == 'unavailable') {
+                      final noteText = await _promptNote(context, note);
+                      if (noteText == null) {
+                        return;
+                      }
+                      updateData['note'] = noteText;
+                      updateData['start_time'] = null;
+                    } else {
+                      updateData['note'] = null;
+                    }
+                    await parkingService.updateParkingStatus(docId, updateData);
+                  } catch (e) {
+                    if (ScaffoldMessenger.maybeOf(context) != null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('เปลี่ยนสถานะไม่สำเร็จ: $e')),
+                      );
+                    } else {
+                      debugPrint('Error updating status for $docId: $e');
+                    }
+                  }
+                },
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'available':
+        return Colors.green;
+      case 'occupied':
+        return Colors.red;
+      case 'unavailable':
+        return Colors.grey;
+      case 'held':
+        return Colors.orange;
+      default:
+        return Colors.black;
+    }
+  }
+
+  /// Prompts the admin to provide a reason whenever a spot becomes unavailable.
+  /// Returning `null` cancels the change so we never store an empty note.
+  Future<String?> _promptNote(BuildContext context, String? current) async {
+    final controller = TextEditingController(text: current ?? '');
+    final result = await showDialog<String>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('สาเหตุการปิดใช้งาน'),
+            content: TextField(
+              controller: controller,
+              decoration: const InputDecoration(hintText: 'เช่น ซ่อมบำรุง'),
+              autofocus: true,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, null),
+                child: const Text('ยกเลิก'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+                child: const Text('บันทึก'),
+              ),
+            ],
+          ),
+    );
+    return result == null || result.isEmpty ? null : result;
+  }
+
+  Widget _buildBox(Color color, {Color? textColor, bool hasNote = false}) {
+    final base = Container(
+      width: direction == Axis.vertical ? 30 : 45,
+      height: direction == Axis.vertical ? 45 : 30,
+      decoration: BoxDecoration(
+        color: color,
+        border: Border.all(color: Colors.white),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      alignment: Alignment.center,
+      child: FittedBox(
+        child: Text(
+          '$id',
+          style: TextStyle(color: textColor ?? Colors.white, fontSize: 12),
+        ),
+      ),
+    );
+
+    if (!hasNote) return base;
+
+    return Stack(
+      children: [
+        base,
+        Positioned(
+          top: 2,
+          right: 2,
+          child: Icon(Icons.sticky_note_2, size: 12, color: Colors.white),
+        ),
+      ],
     );
   }
 }

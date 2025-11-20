@@ -13,6 +13,7 @@ import 'package:mtproject/services/theme_manager.dart'; // Import theme_manager
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await ThemeManager.initialize();
 
   // เราจะย้ายการสร้างข้อมูลไปไว้ใน AuthChecker แทน
   // เพื่อให้แน่ใจว่ามันทำงานหลังจากมีคนล็อกอินแล้ว

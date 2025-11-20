@@ -8,6 +8,7 @@ class ParkingBox extends StatefulWidget {
   final int id;
   final Axis direction;
   final int? recommendedId;
+  final bool offlineMode;
 
   const ParkingBox({
     super.key,
@@ -15,6 +16,7 @@ class ParkingBox extends StatefulWidget {
     required this.id,
     this.direction = Axis.vertical,
     this.recommendedId,
+    this.offlineMode = false,
   });
 
   @override
@@ -77,16 +79,6 @@ class _ParkingBoxState extends State<ParkingBox>
     }
   }
 
-  String _getElapsedTime(Timestamp startTime) {
-    final now = DateTime.now();
-    final started = startTime.toDate();
-    final diff = now.difference(started);
-    final hours = diff.inHours;
-    final minutes = diff.inMinutes % 60;
-    if (hours > 0) return '$hours ชม. $minutes นาที';
-    return '$minutes นาที';
-  }
-
   Widget _buildBox(Color color, {Color? textColor}) {
     final boxTextColor =
         textColor ??
@@ -138,6 +130,11 @@ class _ParkingBoxState extends State<ParkingBox>
             : Colors.grey.shade300;
     final offlineTextColor = theme.textTheme.bodySmall?.color ?? Colors.grey;
 
+    if (widget.offlineMode) {
+      _ensureBlinking(false);
+      return _buildBox(offlineColor, textColor: offlineTextColor);
+    }
+
     return StreamBuilder<DocumentSnapshot>(
       stream:
           FirebaseFirestore.instance
@@ -162,12 +159,20 @@ class _ParkingBoxState extends State<ParkingBox>
 
         // --- ถ้ามีข้อมูล (Online) ---
         final data = snapshot.data!.data() as Map<String, dynamic>;
-        final String status = (data['status'] ?? 'available') as String;
+        final String status =
+            (data['status'] ?? 'available').toString().toLowerCase();
         final Timestamp? startTime = data['start_time'] as Timestamp?;
+        final Timestamp? lastUpdated = data['last_updated'] as Timestamp?;
+        final String? note = data['note'] as String?;
         final String? holdBy = data['hold_by'] as String?;
 
+        final bool isHeldByCurrentUser =
+            currentUid != null && holdBy == currentUid;
         final bool isRecommended = widget.recommendedId == widget.id;
-        final bool blink = isRecommended;
+        // Only the requesting user should ever see the blinking highlight, so we
+        // double check both the locally stored recommendation id and Firestore's
+        // hold_by metadata before animating.
+        final bool blink = isRecommended && isHeldByCurrentUser;
 
         Color baseColor;
         switch (status) {
@@ -181,11 +186,10 @@ class _ParkingBoxState extends State<ParkingBox>
             baseColor = unavailableColor;
             break;
           case 'held':
-            if (currentUid != null && holdBy == currentUid) {
-              baseColor = heldColor;
-            } else {
-              baseColor = availableColor;
-            }
+            // Held slots show their true status to every viewer so the map stays
+            // accurate, but the blinking/highlight (see [blink]) only kicks in
+            // when the current user is the one holding that spot.
+            baseColor = heldColor;
             break;
           default:
             baseColor = defaultColor;
@@ -196,21 +200,12 @@ class _ParkingBoxState extends State<ParkingBox>
         // --- ส่วน GestureDetector (เหมือนเดิม) ---
         return GestureDetector(
           onTap: () {
-            if (status == 'occupied' && startTime != null) {
-              final elapsed = _getElapsedTime(startTime);
-              showDialog(
+            if (status.toLowerCase() != 'available') {
+              _showStatusDialog(
                 context: context,
-                builder:
-                    (_) => AlertDialog(
-                      title: Text('ช่อง ${widget.id}'),
-                      content: Text('ใช้งานมาแล้ว: $elapsed'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('ปิด'),
-                        ),
-                      ],
-                    ),
+                status: status,
+                since: _resolveReferenceTime(status, startTime, lastUpdated),
+                note: note,
               );
             }
           },
@@ -226,5 +221,75 @@ class _ParkingBoxState extends State<ParkingBox>
         );
       },
     );
+  }
+
+  DateTime? _resolveReferenceTime(
+    String status,
+    Timestamp? start,
+    Timestamp? lastUpdated,
+  ) {
+    if (status == 'occupied' && start != null) {
+      return start.toDate();
+    }
+    return lastUpdated?.toDate();
+  }
+
+  void _showStatusDialog({
+    required BuildContext context,
+    required String status,
+    DateTime? since,
+    String? note,
+  }) {
+    final buffer = <Widget>[];
+    if (since != null) {
+      buffer.add(Text('อยู่ในสถานะนี้มาแล้ว ${_formatDuration(since)}'));
+      buffer.add(const SizedBox(height: 8));
+      buffer.add(Text('ตั้งแต่ ${_formatTimestamp(since)}'));
+    } else {
+      buffer.add(const Text('ไม่มีข้อมูลเวลาอัปเดตล่าสุด'));
+    }
+
+    if (note != null && note.isNotEmpty) {
+      buffer.add(const SizedBox(height: 8));
+      buffer.add(Text('หมายเหตุ: $note'));
+    }
+
+    showDialog(
+      context: context,
+      builder:
+          (_) => AlertDialog(
+            title: Text('ช่อง ${widget.id} - ${status.toUpperCase()}'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: buffer,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('ปิด'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  String _formatDuration(DateTime since) {
+    final diff = DateTime.now().difference(since);
+    final totalMinutes = diff.inMinutes;
+    if (totalMinutes >= 60) {
+      final hours = (totalMinutes / 60).toStringAsFixed(1);
+      return '$hours ชั่วโมง';
+    }
+    return '$totalMinutes นาที';
+  }
+
+  String _formatTimestamp(DateTime time) {
+    final date =
+        '${time.day.toString().padLeft(2, '0')}/'
+        '${time.month.toString().padLeft(2, '0')}';
+    final clock =
+        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    return '$date $clock น.';
   }
 }

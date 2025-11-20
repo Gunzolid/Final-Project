@@ -17,6 +17,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
   User? _currentUser;
+  String? _profileEmail;
 
   @override
   void initState() {
@@ -33,6 +34,8 @@ class _ProfilePageState extends State<ProfilePage> {
       if (mounted) {
         setState(() {
           _userData = data;
+          _profileEmail =
+              data?['email'] as String? ?? _currentUser?.email ?? '-';
           _isLoading = false;
         });
       }
@@ -132,7 +135,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    user.email ?? 'N/A',
+                    _profileEmail ?? user.email ?? 'N/A',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
@@ -168,8 +171,9 @@ class _ProfilePageState extends State<ProfilePage> {
                         title: const Text('โหมดกลางคืน'),
                         value: isDarkMode,
                         onChanged: (value) {
-                          themeNotifier.value =
-                              value ? ThemeMode.dark : ThemeMode.light;
+                          ThemeManager.updateTheme(
+                            value ? ThemeMode.dark : ThemeMode.light,
+                          );
                         },
                       );
                     },

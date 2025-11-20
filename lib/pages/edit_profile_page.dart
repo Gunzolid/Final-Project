@@ -60,6 +60,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (newName != widget.currentName) {
         // ตรวจสอบว่าฟังก์ชัน updateUserProfile รับแค่ uid กับ name
         await _firebaseService.updateUserProfile(user.uid, newName);
+        await user.updateDisplayName(newName);
         profileUpdated = true;
         debugPrint("Name updated in Firestore.");
       }
