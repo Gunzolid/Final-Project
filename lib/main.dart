@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mtproject/pages/login_page.dart';
 import 'package:mtproject/pages/home_page.dart';
-import 'package:mtproject/pages/admin_parking_page.dart';
+import 'package:mtproject/pages/admin/admin_root_page.dart';
 import 'firebase_options.dart';
 import 'package:mtproject/services/user_bootstrap.dart'; // Import bootstrap
 import 'package:mtproject/services/theme_manager.dart'; // Import theme_manager
@@ -57,7 +57,7 @@ class MyApp extends StatelessWidget {
           routes: {
             '/login': (_) => const LoginPage(),
             '/home': (_) => const HomePage(),
-            '/admin': (_) => const AdminParkingPage(),
+            '/admin': (_) => const AdminRootPage(),
           },
           home: const AuthChecker(),
         );
@@ -93,7 +93,7 @@ class AuthChecker extends StatelessWidget {
         docSnapshot.exists ? (docSnapshot.data()?['role'] ?? 'user') : 'user';
 
     if (role == 'admin') {
-      return const AdminParkingPage();
+      return const AdminRootPage();
     } else {
       return const HomePage();
     }

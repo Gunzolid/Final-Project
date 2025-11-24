@@ -1,6 +1,6 @@
 // lib/ui/recommend_dialog.dart
 import 'package:flutter/material.dart';
-import 'package:mtproject/models/directions.dart';
+import 'package:mtproject/services/directions_service.dart';
 
 /// โชว์ popup แนะนำช่อง + ถามเปิด Google Maps ไปตึก 6
 Future<void> showRecommendDialog(

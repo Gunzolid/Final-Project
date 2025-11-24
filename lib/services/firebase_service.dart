@@ -19,6 +19,17 @@ class FirebaseService {
     }
   }
 
+  // อัปเดตข้อมูลผู้ใช้แบบ Generic
+  Future<void> updateUserData(String uid, Map<String, dynamic> data) async {
+    try {
+      await _firestore.collection('users').doc(uid).update(data);
+      debugPrint(">>> Successfully updated user data: $data");
+    } catch (e) {
+      debugPrint(">>> Error updating user data: $e");
+      rethrow;
+    }
+  }
+
   // ดึงข้อมูลโปรไฟล์จาก Firestore
   Future<Map<String, dynamic>?> getUserProfile() async {
     String userId = FirebaseAuth.instance.currentUser?.uid ?? "test_user";

@@ -1,17 +1,7 @@
-// lib/data/parking_layout_config.dart
 import 'package:flutter/material.dart';
 
-/// Total number of physical parking spots rendered in the layout.
-const int kTotalParkingSpots = 52;
-
-/// -----------------------------------------------------------------
-/// == ตัวแปรหลักสำหรับปรับตำแหน่ง ==
-///
-/// [kLayoutVerticalShift] คือระยะที่จะขยับ layout ทั้งหมด "ขึ้น"
-/// - 0.0 = ตำแหน่งเดิม (ช่องบนสุดอยู่ที่ y: 50)
-/// - 40.0 = ขยับขึ้น 40 pixels (ช่องบนสุดอยู่ที่ y: 10)
-///
-///  VVV ปรับค่านี้ค่าเดียวเพื่อขยับทุกอย่าง VVV
+// --- ค่าคงที่สำหรับ Layout ---
+const int kTotalSpots = 52;
 const double kLayoutVerticalShift = 40.0;
 
 /// -----------------------------------------------------------------

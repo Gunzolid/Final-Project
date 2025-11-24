@@ -148,6 +148,10 @@ class _LoginPageState extends State<LoginPage> {
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false),
+          ),
           title: const Text('เข้าสู่ระบบ'),
         ),
         body: Center(
@@ -184,6 +188,19 @@ class _LoginPageState extends State<LoginPage> {
                       }
                       return null;
                     },
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _showForgotPasswordDialog,
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(50, 30),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('ลืมรหัสผ่าน?'),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   if (_errorMessage != null)
@@ -226,6 +243,66 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _showForgotPasswordDialog() async {
+    final emailController = TextEditingController();
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('ลืมรหัสผ่าน'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('กรุณากรอกอีเมลเพื่อรับลิงก์รีเซ็ตรหัสผ่าน'),
+            const SizedBox(height: 10),
+            TextField(
+              controller: emailController,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('ยกเลิก'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final email = emailController.text.trim();
+              if (email.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('กรุณากรอกอีเมล')),
+                );
+                return;
+              }
+              try {
+                Navigator.pop(context); // Close dialog first
+                await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('ส่งอีเมลรีเซ็ตรหัสผ่านเรียบร้อยแล้ว โปรดตรวจสอบกล่องจดหมาย'),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('ส่ง'),
+          ),
+        ],
       ),
     );
   }

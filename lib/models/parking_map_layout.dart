@@ -6,21 +6,27 @@ import 'parking_box.dart';
 
 // 2. ลบ Class ParkingLayoutInfo และ List kParkingLayoutXY ที่เคยย้ายมาทิ้งไป
 
+import 'package:mtproject/models/admin_parking_box.dart';
+
 class ParkingMapLayout extends StatelessWidget {
   final int? recommendedSpot;
   final bool offlineMode;
+  final bool isAdmin;
 
   const ParkingMapLayout({
     super.key,
     this.recommendedSpot,
     this.offlineMode = false,
-  }) : assert(
-         kParkingLayoutXY.length == kTotalParkingSpots,
-         'Parking layout must list all $kTotalParkingSpots spots.',
-       );
+    this.isAdmin = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    assert(
+      kParkingLayoutXY.length == kTotalSpots,
+      'Parking layout must list all $kTotalSpots spots.',
+    );
+
     final brightness = Theme.of(context).brightness;
     final roadColor =
         brightness == Brightness.dark ? Colors.white : Colors.black;
@@ -32,7 +38,7 @@ class ParkingMapLayout extends StatelessWidget {
       // boundaryMargin: const EdgeInsets.all(double.infinity),
       child: Container(
         color: backgroundColor,
-        width: 800,
+        width: 1200, // Increased width for wider layout
         // 3. ใช้ความสูงที่คำนวณจาก config
         height: kMapTotalHeight,
         child: Stack(
@@ -85,12 +91,20 @@ class ParkingMapLayout extends StatelessWidget {
               Positioned(
                 top: spotInfo.y,
                 left: spotInfo.x,
-                child: ParkingBox(
-                  docId: '${spotInfo.id}',
-                  id: spotInfo.id,
-                  direction: spotInfo.direction,
-                  recommendedId: recommendedSpot,
-                ),
+                child:
+                    isAdmin
+                        ? AdminParkingBox(
+                          docId: '${spotInfo.id}',
+                          id: spotInfo.id,
+                          direction: spotInfo.direction,
+                        )
+                        : ParkingBox(
+                          docId: '${spotInfo.id}',
+                          id: spotInfo.id,
+                          direction: spotInfo.direction,
+                          recommendedId: recommendedSpot,
+                          offlineMode: offlineMode,
+                        ),
               ),
           ],
         ),

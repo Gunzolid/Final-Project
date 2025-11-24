@@ -19,6 +19,16 @@ class _ProfilePageState extends State<ProfilePage> {
   User? _currentUser;
   String? _profileEmail;
 
+  // List of available avatars
+  final List<IconData> _avatarIcons = [
+    Icons.person,
+    Icons.face,
+    Icons.face_3,
+    Icons.face_4,
+    Icons.face_6,
+    Icons.account_circle,
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -29,7 +39,6 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _loadUserData() async {
     setState(() => _isLoading = true);
     if (_currentUser != null) {
-      // VVV 1. แก้ไขชื่อฟังก์ชันตรงนี้ VVV
       final data = await _firebaseService.getUserProfile();
       if (mounted) {
         setState(() {
@@ -46,72 +55,83 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // ลบการลบบัญชีผู้ใช้ออกเพราะมี Bug
-  // Future<void> _deleteAccount() async {
-  //   final user = _currentUser;
-  //   if (user == null) return;
+  Future<void> _showAvatarSelectionDialog() async {
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('เลือกรูปโปรไฟล์'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: GridView.builder(
+              shrinkWrap: true,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+              ),
+              itemCount: _avatarIcons.length,
+              itemBuilder: (context, index) {
+                return InkWell(
+                  onTap: () => _updateAvatar(index),
+                  borderRadius: BorderRadius.circular(50),
+                  child: CircleAvatar(
+                    radius: 30,
+                    backgroundColor:
+                        Theme.of(context).colorScheme.primaryContainer,
+                    child: Icon(
+                      _avatarIcons[index],
+                      size: 30,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('ปิด'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
-  //   final confirm = await showDialog<bool>(
-  //     context: context,
-  //     builder:
-  //         (context) => AlertDialog(
-  //           title: const Text('ยืนยันการลบบัญชี'),
-  //           content: const Text(
-  //             'คุณแน่ใจหรือไม่ว่าต้องการลบบัญชีนี้? การดำเนินการนี้ไม่สามารถย้อนกลับได้ และข้อมูลทั้งหมดของคุณจะถูกลบ',
-  //           ),
-  //           actions: [
-  //             TextButton(
-  //               onPressed: () => Navigator.of(context).pop(false),
-  //               child: const Text('ยกเลิก'),
-  //             ),
-  //             TextButton(
-  //               onPressed: () => Navigator.of(context).pop(true),
-  //               style: TextButton.styleFrom(foregroundColor: Colors.red),
-  //               child: const Text('ลบบัญชี'),
-  //             ),
-  //           ],
-  //         ),
-  //   );
+  Future<void> _updateAvatar(int index) async {
+    Navigator.pop(context); // Close dialog
+    if (_currentUser == null) return;
 
-  //   if (confirm == true) {
-  //     setState(() => _isLoading = true);
-  //     try {
-  //       // 3. เรียกใช้ Cloud Function (แทน user.delete())
-  //       final callable = FirebaseFunctions.instance.httpsCallable(
-  //         'deleteUserAccount',
-  //       );
-
-  //       await callable.call(); // สั่งให้ Cloud Function ทำงาน
-
-  //       // 4. หลังจาก Cloud Function ทำงานสำเร็จ, Auth listener ใน HomePage
-  //       // จะตรวจจับการ Logout อัตโนมัติ
-
-  //       if (mounted) {
-  //         ScaffoldMessenger.of(
-  //           context,
-  //         ).showSnackBar(const SnackBar(content: Text('ลบบัญชีสำเร็จ')));
-  //         // Pop กลับไปหน้า Home (ซึ่งจะแสดงผลแบบ Log out แล้ว)
-  //         Navigator.of(context).pop();
-  //       }
-  //     } catch (e) {
-  //       // 5. จัดการ Error (เช่น Network error หรือ Error จาก Cloud Function)
-  //       print("Error deleting account via Cloud Function: $e");
-  //       if (mounted) {
-  //         ScaffoldMessenger.of(context).showSnackBar(
-  //           SnackBar(content: Text('เกิดข้อผิดพลาดในการลบบัญชี: $e')),
-  //         );
-  //       }
-  //     } finally {
-  //       if (mounted) {
-  //         setState(() => _isLoading = false);
-  //       }
-  //     }
-  //   }
-  // }
+    setState(() => _isLoading = true);
+    try {
+      await _firebaseService.updateUserData(
+        _currentUser!.uid,
+        {'avatarIndex': index},
+      );
+      await _loadUserData(); // Reload to show new avatar
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = _currentUser;
+    final avatarIndex = _userData?['avatarIndex'] as int? ?? 0;
+    final currentAvatar =
+        (avatarIndex >= 0 && avatarIndex < _avatarIcons.length)
+            ? _avatarIcons[avatarIndex]
+            : _avatarIcons[0];
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
@@ -123,9 +143,35 @@ class _ProfilePageState extends State<ProfilePage> {
               : ListView(
                 padding: const EdgeInsets.all(16.0),
                 children: [
-                  CircleAvatar(
-                    radius: 50,
-                    child: const Icon(Icons.person, size: 50),
+                  Center(
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 50,
+                          child: Icon(currentAvatar, size: 50),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: InkWell(
+                            onTap: _showAvatarSelectionDialog,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).primaryColor,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white),
+                              ),
+                              child: const Icon(
+                                Icons.edit,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -179,18 +225,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     },
                   ),
                   const Divider(),
-                  // ปิดการลบบัญชีผู้ใช้ออกเพราะมี Bug
-                  // ListTile(
-                  //   leading: Icon(
-                  //     Icons.delete_forever,
-                  //     color: Colors.red.shade400,
-                  //   ),
-                  //   title: Text(
-                  //     'ลบบัญชี',
-                  //     style: TextStyle(color: Colors.red.shade400),
-                  //   ),
-                  //   onTap: _deleteAccount,
-                  // ),
                   ListTile(
                     leading: Icon(Icons.logout, color: Colors.orange.shade700),
                     title: Text(
@@ -198,7 +232,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       style: TextStyle(color: Colors.orange.shade700),
                     ),
                     onTap: () async {
-                      // VVV 2. แก้ไขการเรียกใช้ตรงนี้ VVV
                       await FirebaseAuth.instance.signOut();
                       if (mounted) {
                         Navigator.of(

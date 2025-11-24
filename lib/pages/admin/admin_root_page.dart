@@ -1,24 +1,23 @@
-// lib/pages/admin_parking_page.dart
+// lib/pages/admin/admin_root_page.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:mtproject/models/admin_parking_map_layout.dart';
+import 'package:mtproject/models/parking_map_layout.dart';
 import 'package:mtproject/services/firebase_parking_service.dart';
 import 'package:mtproject/services/firebase_service.dart';
 import 'package:mtproject/ui/adaptive_scaffold.dart';
-
-// 2. เปลี่ยนเป็น StatefulWidget
 import 'package:mtproject/pages/admin/admin_dashboard_page.dart';
 import 'package:mtproject/pages/admin/admin_spot_list_page.dart';
+import 'package:mtproject/pages/profile_page.dart';
 
-class AdminParkingPage extends StatefulWidget {
-  const AdminParkingPage({super.key});
+class AdminRootPage extends StatefulWidget {
+  const AdminRootPage({super.key});
 
   @override
-  State<AdminParkingPage> createState() => _AdminParkingPageState();
+  State<AdminRootPage> createState() => _AdminRootPageState();
 }
 
-class _AdminParkingPageState extends State<AdminParkingPage> {
+class _AdminRootPageState extends State<AdminRootPage> {
   final FirebaseService _firebaseService = FirebaseService();
   int _selectedIndex = 0;
   bool _checkingAccess = true;
@@ -73,24 +72,14 @@ class _AdminParkingPageState extends State<AdminParkingPage> {
     final List<Widget> pages = [
       const AdminDashboardPage(),
       const AdminSpotListPage(),
-      const AdminParkingMapLayout(), // Reuse existing map layout
+      const ParkingMapLayout(isAdmin: true),
+      const ProfilePage(), // Add ProfilePage
     ];
 
     return AdaptiveScaffold(
       appBar: AppBar(
         title: const Text("Admin Console"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'ออกจากระบบ',
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              if (mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
-              }
-            },
-          ),
-        ],
+        // Remove Logout button from AppBar as it's now in ProfilePage
       ),
       body: IndexedStack(
         index: _selectedIndex,
@@ -101,6 +90,7 @@ class _AdminParkingPageState extends State<AdminParkingPage> {
         AdaptiveNavigationItem(icon: Icons.dashboard, label: 'Dashboard'),
         AdaptiveNavigationItem(icon: Icons.list_alt, label: 'Manage Spots'),
         AdaptiveNavigationItem(icon: Icons.map, label: 'Map View'),
+        AdaptiveNavigationItem(icon: Icons.person, label: 'Profile'),
       ],
       onDestinationSelected: (index) {
         setState(() => _selectedIndex = index);

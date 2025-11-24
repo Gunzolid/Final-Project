@@ -88,6 +88,10 @@ class AdaptiveScaffold extends StatelessWidget {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentIndex,
         onTap: onDestinationSelected,
+        type: BottomNavigationBarType.fixed, // Ensure background color shows
+        backgroundColor: Colors.grey[200], // Darker background
+        selectedItemColor: Theme.of(context).primaryColor,
+        unselectedItemColor: Colors.grey[700],
         items: destinations
             .map(
               (item) => BottomNavigationBarItem(

@@ -265,7 +265,7 @@ class _HomePageState extends State<HomePage> {
                   } else {
                     final available = snapshot.data?.docs.length ?? 0;
                     content = Text(
-                      "พื้นที่ว่าง: $available/$kTotalParkingSpots",
+                      "พื้นที่ว่าง: $available/$kTotalSpots",
                       style: TextStyle(
                         color: textColor,
                         fontSize: 16,
