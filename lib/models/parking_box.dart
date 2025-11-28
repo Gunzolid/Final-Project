@@ -28,26 +28,25 @@ class _ParkingBoxState extends State<ParkingBox>
   late AnimationController _controller;
   late Animation<Color?> _blinkColor;
 
+  // Track previous state for notifications
+  String? _lastStatus;
+  String? _lastHoldBy;
+  bool _isFirstLoad = true;
+
   @override
   void initState() {
     super.initState();
-    // 1. initState() จะมีแค่การตั้งค่า Controller เท่านั้น
     _controller = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-
-    // VVV ลบส่วนที่เรียกใช้ Theme.of(context) ออกจาก initState VVV
-    // final theme = Theme.of(context); // <-- ห้ามเรียกในนี้
-    // _blinkColor = ColorTween(...).animate(_controller); // <-- ย้ายไป didChangeDependencies
   }
 
-  // 2. ย้ายโค้ดที่ต้องใช้ Theme มาไว้ใน didChangeDependencies()
+  // ... (didChangeDependencies, dispose, _ensureBlinking, _buildBox remain same)
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // อัปเดตสี blinking ตาม Theme
-    // ที่นี่สามารถเรียก Theme.of(context) ได้อย่างปลอดภัย
     final theme = Theme.of(context);
     _blinkColor = ColorTween(
       begin:
@@ -104,6 +103,60 @@ class _ParkingBoxState extends State<ParkingBox>
     );
   }
 
+  void _checkAndAlertStatusChange(
+    BuildContext context,
+    String currentStatus,
+    String? currentHoldBy,
+    String? currentUid,
+  ) {
+    // Skip if first load or user not logged in
+    if (_isFirstLoad || currentUid == null) {
+      _lastStatus = currentStatus;
+      _lastHoldBy = currentHoldBy;
+      _isFirstLoad = false;
+      return;
+    }
+
+    // Check if I WAS holding this spot
+    if (_lastHoldBy == currentUid) {
+      // If I am NO LONGER holding it
+      if (currentHoldBy != currentUid) {
+        String? message;
+        if (currentStatus == 'available') {
+          message = 'การจองช่อง ${widget.id} ของคุณหมดเวลาแล้ว';
+        } else if (currentStatus == 'occupied') {
+          // If it became occupied, it might be the user parking, or someone else.
+          // We can't distinguish easily, but we can inform.
+          message = 'ช่อง ${widget.id} ถูกใช้งานแล้ว';
+        } else if (currentStatus == 'unavailable') {
+          message = 'ช่อง ${widget.id} ไม่พร้อมใช้งาน';
+        }
+
+        if (message != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(message!),
+                  duration: const Duration(seconds: 4),
+                  action: SnackBarAction(
+                    label: 'ตกลง',
+                    onPressed:
+                        () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+                  ),
+                ),
+              );
+            }
+          });
+        }
+      }
+    }
+
+    // Update last state
+    _lastStatus = currentStatus;
+    _lastHoldBy = currentHoldBy;
+  }
+
   @override
   Widget build(BuildContext context) {
     final String? currentUid = FirebaseAuth.instance.currentUser?.uid;
@@ -142,7 +195,6 @@ class _ParkingBoxState extends State<ParkingBox>
               .doc(widget.docId)
               .snapshots(),
       builder: (context, snapshot) {
-        // --- 3. ส่วนจัดการ Offline/Loading (ที่เราทำไว้) ---
         if (snapshot.connectionState == ConnectionState.waiting ||
             snapshot.hasError ||
             !snapshot.hasData ||
@@ -157,7 +209,6 @@ class _ParkingBoxState extends State<ParkingBox>
           return _buildBox(offlineColor, textColor: offlineTextColor);
         }
 
-        // --- ถ้ามีข้อมูล (Online) ---
         final data = snapshot.data!.data() as Map<String, dynamic>;
         final String status =
             (data['status'] ?? 'available').toString().toLowerCase();
@@ -166,12 +217,12 @@ class _ParkingBoxState extends State<ParkingBox>
         final String? note = data['note'] as String?;
         final String? holdBy = data['hold_by'] as String?;
 
+        // Check for status changes and alert
+        _checkAndAlertStatusChange(context, status, holdBy, currentUid);
+
         final bool isHeldByCurrentUser =
             currentUid != null && holdBy == currentUid;
         final bool isRecommended = widget.recommendedId == widget.id;
-        // Only the requesting user should ever see the blinking highlight, so we
-        // double check both the locally stored recommendation id and Firestore's
-        // hold_by metadata before animating.
         final bool blink = isRecommended && isHeldByCurrentUser;
 
         Color baseColor;
@@ -186,9 +237,6 @@ class _ParkingBoxState extends State<ParkingBox>
             baseColor = unavailableColor;
             break;
           case 'held':
-            // Held slots show their true status to every viewer so the map stays
-            // accurate, but the blinking/highlight (see [blink]) only kicks in
-            // when the current user is the one holding that spot.
             baseColor = heldColor;
             break;
           default:
@@ -197,7 +245,6 @@ class _ParkingBoxState extends State<ParkingBox>
 
         _ensureBlinking(blink);
 
-        // --- ส่วน GestureDetector (เหมือนเดิม) ---
         return GestureDetector(
           onTap: () {
             if (status.toLowerCase() != 'available') {

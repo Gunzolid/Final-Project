@@ -81,10 +81,7 @@ class _AdminRootPageState extends State<AdminRootPage> {
         title: const Text("Admin Console"),
         // Remove Logout button from AppBar as it's now in ProfilePage
       ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: pages,
-      ),
+      body: IndexedStack(index: _selectedIndex, children: pages),
       currentIndex: _selectedIndex,
       destinations: const [
         AdaptiveNavigationItem(icon: Icons.dashboard, label: 'Dashboard'),

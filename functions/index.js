@@ -129,26 +129,6 @@ exports.sendUserNotificationEmail = onCall(async (request) => {
   return {ok: true};
 });
 
-/**
- * V2 Firestore Trigger: Cleans up hold info when a spot is taken.
- */
-exports.onSpotTaken = onDocumentUpdated("parking_spots/{spotId}", async (event) => {
-  const beforeData = event.data.before.data();
-  const afterData = event.data.after.data();
-
-  const statusChanged = beforeData.status !== afterData.status;
-  const isNowTaken = afterData.status === "occupied" || afterData.status === "unavailable";
-  const wasHeld = beforeData.hold_by != null;
-
-  if (statusChanged && isNowTaken && wasHeld) {
-    console.log(`Spot ${event.params.spotId} is ${afterData.status}. Clearing hold.`);
-    return event.data.after.ref.update({
-      hold_by: null,
-      hold_until: null,
-    });
-  }
-  return null;
-});
 
 exports.onParkingSpotUpdated = onDocumentUpdated("parking_spots/{spotId}", async (event) => {
   const beforeData = event.data.before.data();
@@ -163,8 +143,18 @@ exports.onParkingSpotUpdated = onDocumentUpdated("parking_spots/{spotId}", async
   // เช็คว่า status เปลี่ยนไปจากเดิมหรือไม่
   if (beforeData.status !== afterData.status) {
     console.log(`Spot ${event.params.spotId} status changed: ${beforeData.status} -> ${afterData.status}`);
-    // ใส่เวลาปัจจุบันของ Server ลงไป
+
+    // 1.1 อัปเดตเวลาแก้ไขล่าสุดเสมอ
     updates.last_updated = FieldValue.serverTimestamp();
+
+    // 1.2 อัปเดตเวลาเริ่มจอด (start_time)
+    if (afterData.status === "occupied" || afterData.status === "unavailable") {
+      // ถ้าสถานะเปลี่ยนเป็น occupied หรือ unavailable ให้เริ่มนับเวลา
+      updates.start_time = FieldValue.serverTimestamp();
+    } else if (afterData.status === "available") {
+      // ถ้าสถานะเปลี่ยนเป็น available ให้เคลียร์เวลาจอด
+      updates.start_time = null;
+    }
   }
 
   // --- Logic 2: เคลียร์การจอง (แม่บ้าน) ---
@@ -176,6 +166,46 @@ exports.onParkingSpotUpdated = onDocumentUpdated("parking_spots/{spotId}", async
     console.log(`Clearing hold info for spot ${event.params.spotId}.`);
     updates.hold_by = null;
     updates.hold_until = null;
+
+    // --- Logic 3: ส่ง Push Notification แจ้งเตือน User ---
+    const holderUid = beforeData.hold_by;
+    if (holderUid) {
+      try {
+        const userDoc = await db.collection("users").doc(holderUid).get();
+        const userData = userDoc.data();
+        const fcmToken = userData ? userData.fcmToken : null;
+
+        if (fcmToken) {
+          let title = "Parking Update";
+          let body = `Spot ${event.params.spotId} status changed.`;
+
+          if (afterData.status === "occupied") {
+            title = "Spot Occupied";
+            body = `Your held spot ${event.params.spotId} is now occupied.`;
+          } else if (afterData.status === "unavailable") {
+            title = "Spot Unavailable";
+            body = `Spot ${event.params.spotId} is currently unavailable.`;
+          }
+
+          const message = {
+            notification: {
+              title: title,
+              body: body,
+            },
+            token: fcmToken,
+          };
+
+          // ส่ง Notification ผ่าน Admin SDK
+          const messaging = require("firebase-admin/messaging").getMessaging();
+          await messaging.send(message);
+          console.log(`Sent notification to ${holderUid}: ${title}`);
+        } else {
+          console.log(`No FCM token found for user ${holderUid}`);
+        }
+      } catch (error) {
+        console.error(`Error sending notification to ${holderUid}:`, error);
+      }
+    }
   }
 
   // --- บันทึกข้อมูล (ถ้ามีอะไรต้องแก้ไข) ---

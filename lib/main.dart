@@ -1,11 +1,13 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mtproject/pages/login_page.dart';
 import 'package:mtproject/pages/home_page.dart';
 import 'package:mtproject/pages/admin/admin_root_page.dart';
+import 'package:mtproject/services/notification_service.dart';
 import 'firebase_options.dart';
 import 'package:mtproject/services/user_bootstrap.dart'; // Import bootstrap
 import 'package:mtproject/services/theme_manager.dart'; // Import theme_manager
@@ -17,6 +19,18 @@ void main() async {
 
   // เราจะย้ายการสร้างข้อมูลไปไว้ใน AuthChecker แทน
   // เพื่อให้แน่ใจว่ามันทำงานหลังจากมีคนล็อกอินแล้ว
+
+  // Initialize Notification Service (Skip on Web for now)
+  if (!kIsWeb) {
+    final notificationService = NotificationService();
+    await notificationService.initialize();
+
+    // Get and save FCM token if user is already logged in
+    final token = await notificationService.getToken();
+    if (token != null) {
+      debugPrint("FCM Token: $token");
+    }
+  }
 
   runApp(const MyApp());
 }

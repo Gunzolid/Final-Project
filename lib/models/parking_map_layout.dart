@@ -8,7 +8,7 @@ import 'parking_box.dart';
 
 import 'package:mtproject/models/admin_parking_box.dart';
 
-class ParkingMapLayout extends StatelessWidget {
+class ParkingMapLayout extends StatefulWidget {
   final int? recommendedSpot;
   final bool offlineMode;
   final bool isAdmin;
@@ -19,6 +19,48 @@ class ParkingMapLayout extends StatelessWidget {
     this.offlineMode = false,
     this.isAdmin = false,
   });
+
+  @override
+  State<ParkingMapLayout> createState() => _ParkingMapLayoutState();
+}
+
+class _ParkingMapLayoutState extends State<ParkingMapLayout> {
+  final TransformationController _transformationController =
+      TransformationController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Center the map after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _centerMap();
+    });
+  }
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
+  }
+
+  void _centerMap() {
+    if (!mounted) return;
+
+    // Calculate scale to fit width or height, or just use 1.0
+    // Let's stick to 1.0 or slightly smaller if screen is small, but user wants to pan.
+    // Let's start with scale 1.0 (or minScale) and center it.
+
+    // Center X: (ScreenW - MapW) / 2
+    // Center Y: (ScreenH - MapH) / 2
+    // But InteractiveViewer uses a Matrix4.
+    // Translation is negative to move the content "left/up" into view if it's larger than screen?
+    // Actually, if content is larger, we want to shift it so its center matches screen center.
+
+    final double x = 25;
+    final double y = 10;
+
+    _transformationController.value = Matrix4.identity()..translate(x, y);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,9 +75,13 @@ class ParkingMapLayout extends StatelessWidget {
     final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
 
     return InteractiveViewer(
+      transformationController: _transformationController,
       maxScale: 3.0,
       minScale: 0.1,
-      // boundaryMargin: const EdgeInsets.all(double.infinity),
+      // Allow panning past the edges
+      boundaryMargin: const EdgeInsets.all(10),
+      constrained:
+          false, // Allow the child to be its natural size (1200xHeight)
       child: Container(
         color: backgroundColor,
         width: 1200, // Increased width for wider layout
@@ -92,7 +138,7 @@ class ParkingMapLayout extends StatelessWidget {
                 top: spotInfo.y,
                 left: spotInfo.x,
                 child:
-                    isAdmin
+                    widget.isAdmin
                         ? AdminParkingBox(
                           docId: '${spotInfo.id}',
                           id: spotInfo.id,
@@ -102,8 +148,8 @@ class ParkingMapLayout extends StatelessWidget {
                           docId: '${spotInfo.id}',
                           id: spotInfo.id,
                           direction: spotInfo.direction,
-                          recommendedId: recommendedSpot,
-                          offlineMode: offlineMode,
+                          recommendedId: widget.recommendedSpot,
+                          offlineMode: widget.offlineMode,
                         ),
               ),
           ],

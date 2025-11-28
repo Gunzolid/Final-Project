@@ -201,7 +201,7 @@ class AdminDashboardPage extends StatelessWidget {
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        itemCount: occupiedDocs.length > 5 ? 5 : occupiedDocs.length,
+        itemCount: occupiedDocs.length,
         separatorBuilder: (context, index) => const Divider(height: 1),
         itemBuilder: (context, index) {
           final data = occupiedDocs[index].data() as Map<String, dynamic>;
@@ -223,7 +223,6 @@ class AdminDashboardPage extends StatelessWidget {
             ),
             title: Text('Spot $id is occupied'),
             subtitle: Text('Started at $timeStr'),
-            trailing: const Icon(Icons.chevron_right, size: 16),
           );
         },
       ),

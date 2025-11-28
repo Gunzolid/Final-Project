@@ -103,4 +103,20 @@ class FirebaseService {
       debugPrintStack(stackTrace: st);
     }
   }
+
+  /// Saves the FCM device token to the user's profile.
+  Future<void> saveDeviceToken(String token) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      await _firestore.collection('users').doc(user.uid).update({
+        'fcmToken': token,
+        'lastTokenUpdate': FieldValue.serverTimestamp(),
+      });
+      debugPrint(">>> FCM Token saved for user: ${user.uid}");
+    } catch (e) {
+      debugPrint(">>> Error saving FCM token: $e");
+    }
+  }
 }
