@@ -53,7 +53,8 @@ class AdminParkingBox extends StatelessWidget {
         return Tooltip(
           message: tooltipText,
           child: InkWell(
-            onTap: () => _showStatusDialog(context, status, note, parkingService),
+            onTap:
+                () => _showStatusDialog(context, status, note, parkingService),
             child: _buildBox(
               _statusColor(status),
               textColor: Colors.white,
@@ -102,7 +103,7 @@ class AdminParkingBox extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: selectedStatus,
+                    initialValue: selectedStatus,
                     decoration: const InputDecoration(labelText: 'สถานะ'),
                     items:
                         ['available', 'occupied', 'unavailable', 'held']
@@ -197,7 +198,7 @@ class AdminParkingBox extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 2,
             offset: const Offset(1, 1),
           ),

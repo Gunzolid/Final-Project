@@ -17,7 +17,9 @@ Future<Position> _getCurrentPosition() async {
   if (!enabled) {
     throw Exception('โปรดเปิด Location Service (GPS)');
   }
-  return Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
+  return Geolocator.getCurrentPosition(
+    locationSettings: const LocationSettings(accuracy: LocationAccuracy.best),
+  );
 }
 
 /// เปิดเส้นทางไป "ตึก 6 ม.อ.ภูเก็ต" บน Google Maps (ฟรี)

@@ -106,10 +106,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
     setState(() => _isLoading = true);
     try {
-      await _firebaseService.updateUserData(
-        _currentUser!.uid,
-        {'avatarIndex': index},
-      );
+      await _firebaseService.updateUserData(_currentUser!.uid, {
+        'avatarIndex': index,
+      });
       await _loadUserData(); // Reload to show new avatar
     } catch (e) {
       if (mounted) {
@@ -208,7 +207,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   ValueListenableBuilder<ThemeMode>(
                     valueListenable: themeNotifier,
-                    builder: (_, currentMode, __) {
+                    builder: (context, currentMode, child) {
                       bool isDarkMode = currentMode == ThemeMode.dark;
                       return SwitchListTile(
                         secondary: Icon(
@@ -233,11 +232,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     onTap: () async {
                       await FirebaseAuth.instance.signOut();
-                      if (mounted) {
-                        Navigator.of(
-                          context,
-                        ).pushNamedAndRemoveUntil('/home', (route) => false);
-                      }
+                      if (!mounted) return;
+                      Navigator.of(
+                        context,
+                      ).pushNamedAndRemoveUntil('/home', (route) => false);
                     },
                   ),
                 ],

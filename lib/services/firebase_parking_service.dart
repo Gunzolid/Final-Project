@@ -194,6 +194,7 @@ class FirebaseParkingService {
           'hold_by': null,
           'hold_until': null,
           'start_time': null,
+          'note': null,
         };
         batch.update(spotDoc.reference, updateData);
       }

@@ -29,7 +29,7 @@ class _ParkingBoxState extends State<ParkingBox>
   late Animation<Color?> _blinkColor;
 
   // Track previous state for notifications
-  String? _lastStatus;
+
   String? _lastHoldBy;
   bool _isFirstLoad = true;
 
@@ -90,7 +90,7 @@ class _ParkingBoxState extends State<ParkingBox>
       height: widget.direction == Axis.vertical ? 45 : 30,
       decoration: BoxDecoration(
         color: color,
-        border: Border.all(color: Colors.white.withOpacity(0.5)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
         borderRadius: BorderRadius.circular(4),
       ),
       alignment: Alignment.center,
@@ -111,7 +111,6 @@ class _ParkingBoxState extends State<ParkingBox>
   ) {
     // Skip if first load or user not logged in
     if (_isFirstLoad || currentUid == null) {
-      _lastStatus = currentStatus;
       _lastHoldBy = currentHoldBy;
       _isFirstLoad = false;
       return;
@@ -142,7 +141,8 @@ class _ParkingBoxState extends State<ParkingBox>
                   action: SnackBarAction(
                     label: 'ตกลง',
                     onPressed:
-                        () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+                        () =>
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar(),
                   ),
                 ),
               );
@@ -153,7 +153,7 @@ class _ParkingBoxState extends State<ParkingBox>
     }
 
     // Update last state
-    _lastStatus = currentStatus;
+
     _lastHoldBy = currentHoldBy;
   }
 
@@ -261,7 +261,7 @@ class _ParkingBoxState extends State<ParkingBox>
                   ? AnimatedBuilder(
                     animation: _blinkColor,
                     builder:
-                        (_, __) =>
+                        (context, child) =>
                             _buildBox(_blinkColor.value ?? availableColor),
                   )
                   : _buildBox(baseColor),

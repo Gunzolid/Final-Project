@@ -287,3 +287,40 @@ const List<ParkingLayoutInfo> kParkingLayoutXY = [
     direction: Axis.horizontal,
   ),
 ];
+
+// --- Class ข้อมูลลูกศรบอกทาง ---
+class ParkingArrowInfo {
+  final double x;
+  final double y;
+  final double
+  angle; // มุมหมุน (radian) 0 = หัวชี้ไปทางขวา, pi/2 = ลง, pi = ซ้าย, -pi/2 = ขึ้น
+
+  const ParkingArrowInfo({
+    required this.x,
+    required this.y,
+    required this.angle,
+  });
+}
+
+// --- List พิกัดลูกศร (ตัวอย่าง) ---
+const List<ParkingArrowInfo> kParkingArrows = [
+  // ถนนแนวตั้งซ้าย (ชี้ลง)
+  ParkingArrowInfo(x: kRoadLeftX + 6, y: 150, angle: 1.57), // pi/2
+  ParkingArrowInfo(x: kRoadLeftX + 6, y: 300, angle: 1.57),
+  ParkingArrowInfo(x: kRoadLeftX + 6, y: 450, angle: 1.57),
+
+  // ถนนแนวตั้งขวา (ชี้ขึ้น)
+  ParkingArrowInfo(x: kRoadRightX + 7, y: 450, angle: -1.57), // -pi/2
+  ParkingArrowInfo(x: kRoadRightX + 7, y: 300, angle: -1.57),
+  ParkingArrowInfo(x: kRoadRightX + 7, y: 150, angle: -1.57),
+
+  // ถนนแนวนอนบน (ชี้ขวา)
+  ParkingArrowInfo(x: 120, y: kRoadBottomY + 10, angle: 0),
+  ParkingArrowInfo(x: 200, y: kRoadBottomY + 10, angle: 0),
+  ParkingArrowInfo(x: 320, y: kRoadBottomY + 10, angle: 0),
+
+  // ถนนแนวนอนล่าง (ชี้ซ้าย)
+  ParkingArrowInfo(x: 200, y: kRoadTopY + 10, angle: 3.14), // pi
+  ParkingArrowInfo(x: 120, y: kRoadTopY + 10, angle: 3.14),
+  ParkingArrowInfo(x: 320, y: kRoadTopY + 10, angle: 3.14),
+];

@@ -1,5 +1,6 @@
 // lib/models/parking_map_layout.dart
 import 'package:flutter/material.dart';
+
 // 1. Import config file
 import 'package:mtproject/models/parking_layout_config.dart';
 import 'parking_box.dart';
@@ -59,7 +60,7 @@ class _ParkingMapLayoutState extends State<ParkingMapLayout> {
     final double x = 25;
     final double y = 10;
 
-    _transformationController.value = Matrix4.identity()..translate(x, y);
+    _transformationController.value = Matrix4.identity()..translate(x, y, 0.0);
   }
 
   @override
@@ -151,6 +152,24 @@ class _ParkingMapLayoutState extends State<ParkingMapLayout> {
                           recommendedId: widget.recommendedSpot,
                           offlineMode: widget.offlineMode,
                         ),
+              ),
+
+            // 6. แสดงลูกศรบอกทาง
+            for (final arrow in kParkingArrows)
+              Positioned(
+                top: arrow.y,
+                left: arrow.x,
+                child: Transform.rotate(
+                  angle: arrow.angle,
+                  child: Icon(
+                    Icons.arrow_forward,
+                    color:
+                        brightness == Brightness.dark
+                            ? Colors.black
+                            : Colors.white,
+                    size: 24,
+                  ),
+                ),
               ),
           ],
         ),

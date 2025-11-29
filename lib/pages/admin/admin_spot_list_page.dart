@@ -21,10 +21,11 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
           _buildHeader(context),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('parking_spots')
-                  .orderBy('id')
-                  .snapshots(),
+              stream:
+                  FirebaseFirestore.instance
+                      .collection('parking_spots')
+                      .orderBy('id')
+                      .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return Center(child: Text('Error: ${snapshot.error}'));
@@ -34,11 +35,13 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
                 }
 
                 final docs = snapshot.data!.docs;
-                final filteredDocs = docs.where((doc) {
-                  if (_filter == 'All') return true;
-                  final status = (doc['status'] ?? '').toString().toLowerCase();
-                  return status == _filter.toLowerCase();
-                }).toList();
+                final filteredDocs =
+                    docs.where((doc) {
+                      if (_filter == 'All') return true;
+                      final status =
+                          (doc['status'] ?? '').toString().toLowerCase();
+                      return status == _filter.toLowerCase();
+                    }).toList();
 
                 return GridView.builder(
                   padding: const EdgeInsets.all(16),
@@ -50,8 +53,13 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
                   ),
                   itemCount: filteredDocs.length,
                   itemBuilder: (context, index) {
-                    final data = filteredDocs[index].data() as Map<String, dynamic>;
-                    return _buildSpotCard(context, filteredDocs[index].id, data);
+                    final data =
+                        filteredDocs[index].data() as Map<String, dynamic>;
+                    return _buildSpotCard(
+                      context,
+                      filteredDocs[index].id,
+                      data,
+                    );
                   },
                 );
               },
@@ -69,7 +77,7 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
         color: Theme.of(context).cardColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 5,
             offset: const Offset(0, 2),
           ),
@@ -81,18 +89,19 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
             children: [
               Text(
                 'Manage Spots',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const Spacer(),
               // Filter Dropdown
               DropdownButton<String>(
                 value: _filter,
                 underline: Container(),
-                items: ['All', 'Available', 'Occupied', 'Unavailable']
-                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                    .toList(),
+                items:
+                    ['All', 'Available', 'Occupied', 'Unavailable']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
                 onChanged: (v) {
                   if (v != null) setState(() => _filter = v);
                 },
@@ -134,7 +143,11 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
     );
   }
 
-  Widget _buildSpotCard(BuildContext context, String docId, Map<String, dynamic> data) {
+  Widget _buildSpotCard(
+    BuildContext context,
+    String docId,
+    Map<String, dynamic> data,
+  ) {
     final id = data['id'];
     final status = (data['status'] ?? 'unknown').toString().toLowerCase();
     final note = data['note'] as String?;
@@ -180,7 +193,10 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
                 children: [
                   Text(
                     'Spot $id',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                   Icon(icon, color: color, size: 20),
                 ],
@@ -195,7 +211,7 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -214,91 +230,115 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
     );
   }
 
-  Future<void> _showEditDialog(String docId, int id, String currentStatus, String? currentNote) async {
+  Future<void> _showEditDialog(
+    String docId,
+    int id,
+    String currentStatus,
+    String? currentNote,
+  ) async {
     String selectedStatus = currentStatus;
     final noteController = TextEditingController(text: currentNote);
 
     await showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            title: Text('Edit Spot $id'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: selectedStatus,
-                  decoration: const InputDecoration(labelText: 'Status'),
-                  items: ['available', 'occupied', 'unavailable', 'held']
-                      .map((s) => DropdownMenuItem(value: s, child: Text(s.toUpperCase())))
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) setState(() => selectedStatus = v);
-                  },
-                ),
-                const SizedBox(height: 16),
-                if (selectedStatus == 'unavailable')
-                  TextField(
-                    controller: noteController,
-                    decoration: const InputDecoration(
-                      labelText: 'Note (Reason)',
-                      hintText: 'e.g. Maintenance',
+      builder:
+          (context) => StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                title: Text('Edit Spot $id'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedStatus,
+                      decoration: const InputDecoration(labelText: 'Status'),
+                      items:
+                          ['available', 'occupied', 'unavailable', 'held']
+                              .map(
+                                (s) => DropdownMenuItem(
+                                  value: s,
+                                  child: Text(s.toUpperCase()),
+                                ),
+                              )
+                              .toList(),
+                      onChanged: (v) {
+                        if (v != null) setState(() => selectedStatus = v);
+                      },
                     ),
+                    const SizedBox(height: 16),
+                    if (selectedStatus == 'unavailable')
+                      TextField(
+                        controller: noteController,
+                        decoration: const InputDecoration(
+                          labelText: 'Note (Reason)',
+                          hintText: 'e.g. Maintenance',
+                        ),
+                      ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
                   ),
-              ],
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-              FilledButton(
-                onPressed: () async {
-                  final updates = <String, dynamic>{'status': selectedStatus};
-                  if (selectedStatus == 'unavailable') {
-                    updates['note'] = noteController.text.trim();
-                    updates['start_time'] = null;
-                  } else if (selectedStatus == 'available') {
-                    updates['start_time'] = null;
-                    updates['note'] = null;
-                  } else if (selectedStatus == 'occupied') {
-                    updates['start_time'] = Timestamp.now();
-                    updates['note'] = null;
-                  }
-                  
-                  await _parkingService.updateParkingStatus(docId, updates);
-                  if (mounted) Navigator.pop(context);
-                },
-                child: const Text('Save'),
-              ),
-            ],
-          );
-        },
-      ),
+                  FilledButton(
+                    onPressed: () async {
+                      final updates = <String, dynamic>{
+                        'status': selectedStatus,
+                      };
+                      if (selectedStatus == 'unavailable') {
+                        updates['note'] = noteController.text.trim();
+                        updates['start_time'] = null;
+                      } else if (selectedStatus == 'available') {
+                        updates['start_time'] = null;
+                        updates['note'] = null;
+                      } else if (selectedStatus == 'occupied') {
+                        updates['start_time'] = Timestamp.now();
+                        updates['note'] = null;
+                      }
+
+                      await _parkingService.updateParkingStatus(docId, updates);
+                      if (!mounted) return;
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Save'),
+                  ),
+                ],
+              );
+            },
+          ),
     );
   }
 
   Future<void> _confirmBulkAction(String status) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Bulk Action'),
-        content: Text('Are you sure you want to set ALL spots to "$status"?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Confirm'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Confirm Bulk Action'),
+            content: Text(
+              'Are you sure you want to set ALL spots to "$status"?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Confirm'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
 
     if (confirm == true) {
       await _parkingService.updateAllSpotsStatus(status);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('All spots set to $status')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('All spots set to $status')));
       }
     }
   }

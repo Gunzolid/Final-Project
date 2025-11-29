@@ -29,7 +29,6 @@ class _SignUpPageState extends State<SignUpPage> {
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
-    final confirmPassword = _confirmPasswordController.text.trim();
 
     setState(() {
       _isSubmitting = true;

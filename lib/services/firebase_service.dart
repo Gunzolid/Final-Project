@@ -71,7 +71,7 @@ class FirebaseService {
     } on FirebaseAuthException catch (e) {
       if (e.code == 'requires-recent-login') {
         // Bubble up so the caller can trigger a re-authentication flow.
-        throw e;
+        rethrow;
       }
       rethrow;
     }

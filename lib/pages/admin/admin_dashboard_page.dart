@@ -24,7 +24,7 @@ class AdminDashboardPage extends StatelessWidget {
           final available =
               docs.where((d) => d['status'] == 'available').length;
           final occupied = docs.where((d) => d['status'] == 'occupied').length;
-          final held = docs.where((d) => d['status'] == 'held').length;
+
           final unavailable =
               docs.where((d) => d['status'] == 'unavailable').length;
 
@@ -121,7 +121,7 @@ class AdminDashboardPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -131,7 +131,7 @@ class AdminDashboardPage extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             Theme.of(context).cardColor,
-            Theme.of(context).cardColor.withOpacity(0.9),
+            Theme.of(context).cardColor.withValues(alpha: 0.9),
           ],
         ),
       ),
@@ -145,7 +145,7 @@ class AdminDashboardPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -196,7 +196,7 @@ class AdminDashboardPage extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.withOpacity(0.2)),
+        side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
       ),
       child: ListView.separated(
         shrinkWrap: true,
@@ -214,7 +214,7 @@ class AdminDashboardPage extends StatelessWidget {
 
           return ListTile(
             leading: CircleAvatar(
-              backgroundColor: Colors.red.withOpacity(0.1),
+              backgroundColor: Colors.red.withValues(alpha: 0.1),
               child: const Icon(
                 Icons.directions_car,
                 color: Colors.red,

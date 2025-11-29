@@ -43,7 +43,7 @@ class MyApp extends StatelessWidget {
     // ใช้ ValueListenableBuilder เพื่อให้ Theme ทำงาน
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
-      builder: (_, currentMode, __) {
+      builder: (context, currentMode, child) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
 

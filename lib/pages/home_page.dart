@@ -241,8 +241,8 @@ class _HomePageState extends State<HomePage> {
                   final brightness = Theme.of(context).brightness;
                   final bgColor =
                       brightness == Brightness.dark
-                          ? Colors.black.withOpacity(0.7)
-                          : Colors.white.withOpacity(0.9);
+                          ? Colors.black.withValues(alpha: 0.7)
+                          : Colors.white.withValues(alpha: 0.9);
                   final textColor =
                       brightness == Brightness.dark
                           ? Colors.white
@@ -297,8 +297,8 @@ class _HomePageState extends State<HomePage> {
                   borderRadius: BorderRadius.circular(8),
                   color:
                       Theme.of(context).brightness == Brightness.dark
-                          ? Colors.black.withOpacity(0.7)
-                          : Colors.white.withOpacity(0.9),
+                          ? Colors.black.withValues(alpha: 0.7)
+                          : Colors.white.withValues(alpha: 0.9),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -397,7 +397,7 @@ class _HomePageState extends State<HomePage> {
     return AdaptiveScaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('Smart Parking'),
+        title: const Text('Park Nhai'),
         // VVV 11. ปิดปุ่ม Profile ถ้า Offline VVV
         actions: [
           if (_isLoadingUser)

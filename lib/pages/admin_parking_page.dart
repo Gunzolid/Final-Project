@@ -1,9 +1,9 @@
 // lib/pages/admin_parking_page.dart
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mtproject/models/admin_parking_map_layout.dart';
-import 'package:mtproject/services/firebase_parking_service.dart';
+
 import 'package:mtproject/services/firebase_service.dart';
 import 'package:mtproject/ui/adaptive_scaffold.dart';
 
@@ -85,17 +85,15 @@ class _AdminParkingPageState extends State<AdminParkingPage> {
             tooltip: 'ออกจากระบบ',
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
-              if (mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
-              }
+              if (!mounted) return;
+              Navigator.of(
+                context,
+              ).pushNamedAndRemoveUntil('/home', (route) => false);
             },
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: pages,
-      ),
+      body: IndexedStack(index: _selectedIndex, children: pages),
       currentIndex: _selectedIndex,
       destinations: const [
         AdaptiveNavigationItem(icon: Icons.dashboard, label: 'Dashboard'),

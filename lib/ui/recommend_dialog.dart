@@ -69,8 +69,11 @@ Future<void> showRecommendDialog(
     try {
       await openGoogleMapsToPSUPK();
     } catch (e) {
-      final messenger = ScaffoldMessenger.maybeOf(context);
-      messenger?.showSnackBar(SnackBar(content: Text('เปิดแผนที่ไม่ได้: $e')));
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('เปิดแผนที่ไม่ได้: $e')));
+      }
     }
   }
 }
