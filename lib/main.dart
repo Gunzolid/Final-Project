@@ -26,9 +26,9 @@ void main() async {
     await notificationService.initialize();
 
     // Get and save FCM token if user is already logged in
-    final token = await notificationService.getToken();
-    if (token != null) {
-      debugPrint("FCM Token: $token");
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await notificationService.saveTokenToUser(user.uid);
     }
   }
 

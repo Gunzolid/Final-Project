@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:email_validator/email_validator.dart';
 import 'package:mtproject/services/firebase_service.dart';
+import 'package:mtproject/services/notification_service.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -49,6 +50,9 @@ class _SignUpPageState extends State<SignUpPage> {
       await userCredential.user!.updateDisplayName(name);
 
       FirebaseService().sendUserNotificationEmail(email: email, type: 'signup');
+
+      // Save FCM Token
+      await NotificationService().saveTokenToUser(uid);
 
       // ✅ แก้ตรงนี้: ไปหน้า Home หลังสมัครทันที
       if (!mounted) return;

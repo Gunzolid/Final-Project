@@ -2,6 +2,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Top-level function for background handling
 @pragma('vm:entry-point')
@@ -33,7 +34,8 @@ class NotificationService {
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
       debugPrint('User granted permission');
-    } else if (settings.authorizationStatus == AuthorizationStatus.provisional) {
+    } else if (settings.authorizationStatus ==
+        AuthorizationStatus.provisional) {
       debugPrint('User granted provisional permission');
     } else {
       debugPrint('User declined or has not accepted permission');
@@ -60,7 +62,9 @@ class NotificationService {
       debugPrint('Message data: ${message.data}');
 
       if (message.notification != null) {
-        debugPrint('Message also contained a notification: ${message.notification}');
+        debugPrint(
+          'Message also contained a notification: ${message.notification}',
+        );
         if (!kIsWeb) {
           _showLocalNotification(message);
         }
@@ -72,6 +76,21 @@ class NotificationService {
 
   Future<String?> getToken() async {
     return await _firebaseMessaging.getToken();
+  }
+
+  Future<void> saveTokenToUser(String uid) async {
+    final token = await getToken();
+    if (token == null) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'fcmToken': token,
+        'last_token_update': FieldValue.serverTimestamp(),
+      });
+      debugPrint("FCM Token saved for user $uid");
+    } catch (e) {
+      debugPrint("Error saving FCM token: $e");
+    }
   }
 
   void _showLocalNotification(RemoteMessage message) {

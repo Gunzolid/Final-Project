@@ -6,6 +6,7 @@ import 'package:email_validator/email_validator.dart';
 import 'package:mtproject/pages/sign_up_page.dart';
 import 'package:mtproject/services/firebase_service.dart';
 import 'package:mtproject/services/user_bootstrap.dart';
+import 'package:mtproject/services/notification_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -74,6 +75,12 @@ class _LoginPageState extends State<LoginPage> {
             email: email,
             type: 'login',
           );
+        }
+
+        // Save FCM Token
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          NotificationService().saveTokenToUser(user.uid);
         }
       }
     } on TimeoutException {
