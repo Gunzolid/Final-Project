@@ -22,7 +22,11 @@ class AdminDashboardPage extends StatelessWidget {
           final docs = snapshot.data!.docs;
           final total = kTotalSpots;
           final available =
-              docs.where((d) => d['status'] == 'available').length;
+              docs
+                  .where(
+                    (d) => d['status'] == 'available' || d['status'] == 'held',
+                  )
+                  .length;
           final occupied = docs.where((d) => d['status'] == 'occupied').length;
 
           final unavailable =

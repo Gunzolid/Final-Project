@@ -11,6 +11,7 @@ import 'package:mtproject/services/firebase_parking_service.dart';
 import 'package:mtproject/pages/searching_page.dart';
 import 'package:mtproject/ui/adaptive_scaffold.dart'; // Import adaptive_scaffold
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:mtproject/pages/instruction_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -148,22 +149,34 @@ class _HomePageState extends State<HomePage> {
         if (mounted) {
           setState(() => _recommendedSpotLocal = null);
           // แจ้งเตือนผู้ใช้ทันทีเมื่อ Cloud Firestore แจ้งว่าการแนะนำหมดอายุหรือถูกยกเลิก
-          _showRecommendationEndedDialog(msg);
+          _showRecommendationEndedDialog(
+            msg,
+            status: recommendation.spotStatus,
+          );
         }
         _recSub?.cancel();
       }
     });
   }
 
-  Future<void> _showRecommendationEndedDialog(String message) async {
+  Future<void> _showRecommendationEndedDialog(
+    String message, {
+    String? status,
+  }) async {
     if (_isRecommendationDialogVisible || !mounted) return;
     _isRecommendationDialogVisible = true;
     final bool? retry = await showDialog<bool>(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('คำแนะนำหมดอายุ'),
-            content: Text('$message\nโปรดค้นหาใหม่เพื่อรับช่องล่าสุด.'),
+            title: Text(
+              status == 'occupied' ? 'มีรถเข้าจอด' : 'การแนะนำเสร็จสิ้น',
+            ),
+            content: Text(
+              status == 'occupied'
+                  ? 'ช่องจอดถูกใช้งานแล้ว หากไม่ใช่ท่าน โปรดค้นหาใหม่'
+                  : '$message\nถ้าต้องการค้นหาอีกครั้งให้กด "ค้นหาอีกครั้ง"',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
@@ -400,6 +413,16 @@ class _HomePageState extends State<HomePage> {
         title: const Text('Park Nhai'),
         // VVV 11. ปิดปุ่ม Profile ถ้า Offline VVV
         actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'คำแนะนำการใช้งาน',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const InstructionPage()),
+              );
+            },
+          ),
           if (_isLoadingUser)
             const Padding(
               padding: EdgeInsets.all(16.0),

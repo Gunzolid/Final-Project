@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mtproject/pages/edit_profile_page.dart';
+import 'package:mtproject/pages/instruction_page.dart';
 import 'package:mtproject/services/firebase_service.dart';
 import 'package:mtproject/services/theme_manager.dart';
 
@@ -220,6 +221,20 @@ class _ProfilePageState extends State<ProfilePage> {
                             value ? ThemeMode.dark : ThemeMode.light,
                           );
                         },
+                      );
+                    },
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.help_outline),
+                    title: const Text('คำแนะนำการใช้งาน'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const InstructionPage(),
+                        ),
                       );
                     },
                   ),

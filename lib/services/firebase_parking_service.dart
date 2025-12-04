@@ -72,7 +72,7 @@ class FirebaseParkingService {
         return RecommendationStatus(
           isActive: false,
           spotStatus: 'occupied',
-          reason: 'ช่องโดนเข้าจอดเรียบร้อยแล้ว',
+          reason: 'ช่องจอดถูกใช้งานแล้ว',
         );
       }
 

@@ -20,7 +20,7 @@ void main() async {
   // เราจะย้ายการสร้างข้อมูลไปไว้ใน AuthChecker แทน
   // เพื่อให้แน่ใจว่ามันทำงานหลังจากมีคนล็อกอินแล้ว
 
-  // Initialize Notification Service (Skip on Web for now)
+  // Initialize Notification Service
   if (!kIsWeb) {
     final notificationService = NotificationService();
     await notificationService.initialize();
