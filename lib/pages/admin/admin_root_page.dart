@@ -8,6 +8,7 @@ import 'package:mtproject/services/firebase_service.dart';
 import 'package:mtproject/ui/adaptive_scaffold.dart';
 import 'package:mtproject/pages/admin/admin_dashboard_page.dart';
 import 'package:mtproject/pages/admin/admin_spot_list_page.dart';
+import 'package:mtproject/pages/admin/admin_instruction_page.dart';
 import 'package:mtproject/pages/profile_page.dart';
 
 class AdminRootPage extends StatefulWidget {
@@ -73,20 +74,19 @@ class _AdminRootPageState extends State<AdminRootPage> {
       const AdminDashboardPage(),
       const AdminSpotListPage(),
       const ParkingMapLayout(isAdmin: true),
+      const AdminInstructionPage(),
       const ProfilePage(), // Add ProfilePage
     ];
 
     return AdaptiveScaffold(
-      appBar: AppBar(
-        title: const Text("Admin Console"),
-        // Remove Logout button from AppBar as it's now in ProfilePage
-      ),
+      appBar: AppBar(title: const Text("Admin Console")),
       body: IndexedStack(index: _selectedIndex, children: pages),
       currentIndex: _selectedIndex,
       destinations: const [
         AdaptiveNavigationItem(icon: Icons.dashboard, label: 'Dashboard'),
         AdaptiveNavigationItem(icon: Icons.list_alt, label: 'Manage Spots'),
         AdaptiveNavigationItem(icon: Icons.map, label: 'Map View'),
+        AdaptiveNavigationItem(icon: Icons.help_outline, label: 'คู่มือ'),
         AdaptiveNavigationItem(icon: Icons.person, label: 'Profile'),
       ],
       onDestinationSelected: (index) {

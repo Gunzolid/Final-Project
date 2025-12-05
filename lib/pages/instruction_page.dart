@@ -85,7 +85,7 @@ class InstructionPage extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       const Text(
-                        'ความหมายของสีสถานะ',
+                        'ความหมายของสีช่องจอด',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
