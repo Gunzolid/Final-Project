@@ -218,6 +218,107 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _onSpotSelected(int spotId) async {
+    // 1. Check Login
+    if (_currentUser == null) {
+      final bool? shouldLogin = await showDialog<bool>(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: const Text('กรุณาเข้าสู่ระบบ'),
+              content: const Text(
+                'คุณต้องเข้าสู่ระบบก่อนจึงจะสามารถจองช่องจอดได้',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('ยกเลิก'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('เข้าสู่ระบบ'),
+                ),
+              ],
+            ),
+      );
+
+      if (shouldLogin == true && mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+        );
+      }
+      return;
+    }
+
+    // 2. Check Connection
+    if (!_isConnected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('คุณกำลังออฟไลน์ ไม่สามารถจองได้')),
+      );
+      return;
+    }
+
+    // 3. Check Existing Hold
+    if (_recommendedSpotLocal != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'คุณจองช่อง $_recommendedSpotLocal ไว้แล้ว กรุณายกเลิกก่อนจองใหม่',
+          ),
+        ),
+      );
+      return;
+    }
+
+    // 4. Confirm Dialog
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('ยืนยันการจองช่อง $spotId'),
+            content: const Text('คุณต้องการจองช่องจอดนี้ใช่หรือไม่?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('ยกเลิก'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('ยืนยัน'),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm != true) return;
+
+    // 5. Perform Hold
+    try {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('กำลังดำเนินการจอง...')));
+
+      await _parkingService.holdParkingSpot(spotId);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      setState(() => _recommendedSpotLocal = spotId);
+      _watchSpot(spotId);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('จองช่อง $spotId สำเร็จ!')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('จองไม่สำเร็จ: $e')));
+    }
+  }
+
   // --- _buildHomePageContent (เหมือนเดิมจากครั้งที่แล้ว) ---
   Widget _buildHomePageContent(BuildContext context) {
     final bool isLoggedIn = _currentUser != null;
@@ -234,6 +335,7 @@ class _HomePageState extends State<HomePage> {
               // เมื่อออฟไลน์ เราแสดงผังสีเทาและไม่ให้ไฮไลต์ช่องใด ๆ
               recommendedSpot: _isConnected ? _recommendedSpotLocal : null,
               offlineMode: !_isConnected,
+              onSpotSelected: _onSpotSelected,
             ),
           ),
         ),

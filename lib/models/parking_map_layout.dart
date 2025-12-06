@@ -13,12 +13,14 @@ class ParkingMapLayout extends StatefulWidget {
   final int? recommendedSpot;
   final bool offlineMode;
   final bool isAdmin;
+  final Function(int)? onSpotSelected;
 
   const ParkingMapLayout({
     super.key,
     this.recommendedSpot,
     this.offlineMode = false,
     this.isAdmin = false,
+    this.onSpotSelected,
   });
 
   @override
@@ -151,6 +153,10 @@ class _ParkingMapLayoutState extends State<ParkingMapLayout> {
                           direction: spotInfo.direction,
                           recommendedId: widget.recommendedSpot,
                           offlineMode: widget.offlineMode,
+                          onSelect:
+                              widget.onSpotSelected != null
+                                  ? () => widget.onSpotSelected!(spotInfo.id)
+                                  : null,
                         ),
               ),
 

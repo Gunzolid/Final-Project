@@ -17,7 +17,10 @@ class ParkingBox extends StatefulWidget {
     this.direction = Axis.vertical,
     this.recommendedId,
     this.offlineMode = false,
+    this.onSelect,
   });
+
+  final VoidCallback? onSelect;
 
   @override
   State<ParkingBox> createState() => _ParkingBoxState();
@@ -253,7 +256,10 @@ class _ParkingBoxState extends State<ParkingBox>
                 status: status,
                 since: _resolveReferenceTime(status, startTime, lastUpdated),
                 note: note,
+                holdBy: holdBy,
               );
+            } else {
+              widget.onSelect?.call();
             }
           },
           child:
@@ -281,13 +287,17 @@ class _ParkingBoxState extends State<ParkingBox>
     return lastUpdated?.toDate();
   }
 
-  void _showStatusDialog({
+  Future<void> _showStatusDialog({
     required BuildContext context,
     required String status,
     DateTime? since,
     String? note,
-  }) {
+    String? holdBy,
+  }) async {
+    if (!context.mounted) return;
+
     final buffer = <Widget>[];
+
     if (since != null) {
       buffer.add(Text('อยู่ในสถานะนี้มาแล้ว ${_formatDuration(since)}'));
       buffer.add(const SizedBox(height: 8));
@@ -301,7 +311,7 @@ class _ParkingBoxState extends State<ParkingBox>
       buffer.add(Text('หมายเหตุ: $note'));
     }
 
-    showDialog(
+    await showDialog(
       context: context,
       builder:
           (_) => AlertDialog(

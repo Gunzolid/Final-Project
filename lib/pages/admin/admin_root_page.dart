@@ -86,7 +86,7 @@ class _AdminRootPageState extends State<AdminRootPage> {
         AdaptiveNavigationItem(icon: Icons.dashboard, label: 'Dashboard'),
         AdaptiveNavigationItem(icon: Icons.list_alt, label: 'Manage Spots'),
         AdaptiveNavigationItem(icon: Icons.map, label: 'Map View'),
-        AdaptiveNavigationItem(icon: Icons.help_outline, label: 'คู่มือ'),
+        AdaptiveNavigationItem(icon: Icons.help_outline, label: 'Manual'),
         AdaptiveNavigationItem(icon: Icons.person, label: 'Profile'),
       ],
       onDestinationSelected: (index) {
