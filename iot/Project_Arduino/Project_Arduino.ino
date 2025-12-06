@@ -2,21 +2,18 @@
 #include <WiFi.h>
 #include <Firebase_ESP_Client.h>
 #include "ArduinoJson.h"
+#include <Preferences.h>
 
 
-// 1. ส่วนตั้งค่าการเชื่อมต่อ (CONFIGURATION)
-// ตั้งค่า Wi-Fi *Importance*
-const char* WIFI_SSID = "Your Wifi SSID";
-const char* WIFI_PASSWORD = "Your Wifi Password";
+// 1. ส่วนตั้งค่า (CONFIGURATION)
+// ค่า Default (กรณีเริ่มใช้ครั้งแรก หรือยังไม่ได้ตั้งค่าผ่าน Serial)
+String wifi_ssid = "Gunza2022_2.4G";
+String wifi_pass = "0937426904";
 
-// ตั้งค่า Firebase Project
-#define FIREBASE_API_KEY "Your Firebase API Key"
-#define FIREBASE_PROJECT_ID "Your Firebase Project ID"
-
-// ตั้งค่าบัญชีผู้ใช้ (Authentication)
-#define USER_EMAIL "Your Firebase User Email for IOT"
-#define USER_PASSWORD "Your Firebase User Password for IOT"
-
+#define FIREBASE_API_KEY "AIzaSyA9tqJbkkl3iA-c4-m0Uj1VvNc4dsrX1ds"
+#define FIREBASE_PROJECT_ID "project-4f636"
+#define USER_EMAIL "esp32-device-01@yourproject.com"
+#define USER_PASSWORD "a_very_strong_password_1234"
 
 // ส่วน Hardware
 #define PARKING_SPOT_ID "1"
@@ -30,12 +27,13 @@ const int LED_PIN = 2;
 FirebaseData fbdo;
 FirebaseAuth auth;
 FirebaseConfig config;
+Preferences preferences; // ตัวแปรจัดการหน่วยความจำ
 
 // ตัวแปรเก็บสถานะ
 String localSensorStatus = "available"; 
 String lastSentStatus = "available";    
 bool isUnavailable = false; 
-bool lastWifiState = false; // ไว้เช็คว่าเน็ตเพิ่งต่อติดหรือเพิ่งหลุด
+bool lastWifiState = false; 
 
 // ตัวแปรเวลา
 unsigned long lastSensorRead = 0;
@@ -43,6 +41,7 @@ unsigned long lastFirebaseCheck = 0;
 const long SENSOR_INTERVAL = 500;       
 const long FIREBASE_CHECK_INTERVAL = 10000; 
 
+ 
 // 3. ฟังก์ชันอ่านระยะทาง
 float readDistanceCM(int trigPin, int echoPin) {
   digitalWrite(trigPin, LOW);
@@ -55,10 +54,62 @@ float readDistanceCM(int trigPin, int echoPin) {
   return us * 0.01715;
 }
 
-// 4. SETUP
+
+// 4. ฟังก์ชันจัดการคำสั่ง Serial (NEW!)
+void checkSerialCommand() {
+  if (Serial.available()) {
+    String input = Serial.readStringUntil('\n');
+    input.trim(); // ตัดช่องว่างหัวท้ายออก
+
+    if (input.startsWith("ssid:")) {
+      String newSSID = input.substring(5);
+      if (newSSID.length() > 0) {
+        preferences.begin("wifi-config", false); // เปิดโหมดเขียน
+        preferences.putString("ssid", newSSID);
+        preferences.end();
+        Serial.println("\n[Config] SSID updated to: " + newSSID);
+        Serial.println("[Config] Restarting to apply changes...");
+        delay(1000);
+        ESP.restart();
+      }
+    } 
+    else if (input.startsWith("pass:")) {
+      String newPass = input.substring(5);
+      if (newPass.length() > 0) {
+        preferences.begin("wifi-config", false); // เปิดโหมดเขียน
+        preferences.putString("pass", newPass);
+        preferences.end();
+        Serial.println("\n[Config] Password updated.");
+        Serial.println("[Config] Restarting to apply changes...");
+        delay(1000);
+        ESP.restart();
+      }
+    }
+    else {
+      Serial.println("\n[Error] Unknown command.");
+      Serial.println("Use 'ssid:YOUR_SSID' or 'pass:YOUR_PASSWORD'");
+    }
+  }
+}
+
+// 5. SETUP
 void setup() {
   Serial.begin(115200);
   Serial.println("\n\n--- Starting Smart Parking System ---");
+
+  // โหลดค่า Wi-Fi จาก Memory (ถ้ามี)
+  preferences.begin("wifi-config", true); // โหมดอ่านอย่างเดียว
+  String storedSSID = preferences.getString("ssid", "");
+  String storedPass = preferences.getString("pass", "");
+  preferences.end();
+
+  if (storedSSID != "") {
+    wifi_ssid = storedSSID;
+    wifi_pass = storedPass;
+    Serial.println("[Config] Loaded Wi-Fi from memory: " + wifi_ssid);
+  } else {
+    Serial.println("[Config] Using default Wi-Fi: " + wifi_ssid);
+  }
 
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
@@ -66,8 +117,8 @@ void setup() {
   digitalWrite(LED_PIN, LOW);
 
   // เริ่มต้น WiFi แบบไม่รอ (Non-blocking)
-  Serial.println("[WiFi] Connecting to " + String(WIFI_SSID) + "...");
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.println("[WiFi] Connecting to " + wifi_ssid + "...");
+  WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
   
   // ตั้งค่า Firebase
   config.api_key = FIREBASE_API_KEY;
@@ -79,15 +130,18 @@ void setup() {
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
   
-  Serial.println("[System] Setup Complete. Running in Offline Mode until connected.");
+  Serial.println("[System] Setup Complete. Type 'ssid:NAME' or 'pass:KEY' to change Wi-Fi.");
 }
 
 
-// 5. LOOP
+// 6. LOOP
 void loop() {
   unsigned long currentMillis = millis();
 
-  // เช็คสถานะ Wi-Fi และแจ้งเตือนทาง Serial
+  // ตรวจจับคำสั่งเปลี่ยน Wi-Fi ---
+  checkSerialCommand();
+
+  // เช็คสถานะ Wi-Fi และแจ้งเตือนทาง Serial ---
   bool currentWifiState = (WiFi.status() == WL_CONNECTED);
   if (currentWifiState != lastWifiState) {
     if (currentWifiState) {
@@ -99,11 +153,10 @@ void loop() {
     lastWifiState = currentWifiState;
   }
 
-  // อ่านเซ็นเซอร์และคุมไฟ (ทำงานตลอดเวลา) 
+  // อ่านเซ็นเซอร์และคุมไฟ (ทำงานตลอดเวลา) ---
   if (currentMillis - lastSensorRead >= SENSOR_INTERVAL) {
     lastSensorRead = currentMillis;
 
-    // ถ้า Admin สั่งปิด (Unavailable) ให้ดับไฟและข้ามการอ่านค่าไปเลย
     if (isUnavailable) {
        digitalWrite(LED_PIN, LOW);
        return; 
@@ -127,7 +180,7 @@ void loop() {
 
       localSensorStatus = newStatus;
 
-      if (localSensorStatus == "occupied") {
+      if (distance < CAR_DETECT_THRESHOLD_CM) {
         digitalWrite(LED_PIN, HIGH);
       } else {
         digitalWrite(LED_PIN, LOW);
@@ -135,10 +188,10 @@ void loop() {
     }
   }
 
-  // จัดการ Firebase (ทำเมื่อมีเน็ต)
+  // จัดการ Firebase (ทำเมื่อมีเน็ต) ---
   if (WiFi.status() == WL_CONNECTED && Firebase.ready()) {
     
-    // เช็คสถานะจาก Server (Admin สั่งปิดไหม?)
+    // 2.1 เช็คสถานะจาก Server (Admin สั่งปิดไหม?)
     if (currentMillis - lastFirebaseCheck >= FIREBASE_CHECK_INTERVAL) {
       lastFirebaseCheck = currentMillis;
       String documentPath = "parking_spots/" + String(PARKING_SPOT_ID);
@@ -149,7 +202,6 @@ void loop() {
         if (doc["fields"]["status"]["stringValue"]) {
           String remoteVal = String(doc["fields"]["status"]["stringValue"]);
           
-          // อัปเดตสถานะ isUnavailable ตามค่าจาก Server
           if (remoteVal == "unavailable") {
             if (!isUnavailable) Serial.println("\n[Admin] Spot set to UNAVAILABLE by server.");
             isUnavailable = true;
