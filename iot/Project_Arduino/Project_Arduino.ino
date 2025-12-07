@@ -7,7 +7,7 @@
 
 // 1. ส่วนตั้งค่า (CONFIGURATION)
 // ค่า Default (กรณีเริ่มใช้ครั้งแรก หรือยังไม่ได้ตั้งค่าผ่าน Serial)
-String wifi_ssid = "Gunza2022_2.4G";
+String wifi_ssid = "SoLiD";
 String wifi_pass = "0937426904";
 
 #define FIREBASE_API_KEY "AIzaSyA9tqJbkkl3iA-c4-m0Uj1VvNc4dsrX1ds"
@@ -55,7 +55,7 @@ float readDistanceCM(int trigPin, int echoPin) {
 }
 
 
-// 4. ฟังก์ชันจัดการคำสั่ง Serial (NEW!)
+// 4. ฟังก์ชันจัดการคำสั่ง Serial
 void checkSerialCommand() {
   if (Serial.available()) {
     String input = Serial.readStringUntil('\n');
@@ -97,8 +97,8 @@ void setup() {
   Serial.begin(115200);
   Serial.println("\n\n--- Starting Smart Parking System ---");
 
-  // โหลดค่า Wi-Fi จาก Memory (ถ้ามี)
-  preferences.begin("wifi-config", true); // โหมดอ่านอย่างเดียว
+  // โหลดค่า Wi-Fi จาก Memory
+  preferences.begin("wifi-config", true);
   String storedSSID = preferences.getString("ssid", "");
   String storedPass = preferences.getString("pass", "");
   preferences.end();
@@ -106,7 +106,7 @@ void setup() {
   if (storedSSID != "") {
     wifi_ssid = storedSSID;
     wifi_pass = storedPass;
-    Serial.println("[Config] Loaded Wi-Fi from memory: " + wifi_ssid);
+    Serial.println("[Config] Loaded Wi-Fi: " + wifi_ssid);
   } else {
     Serial.println("[Config] Using default Wi-Fi: " + wifi_ssid);
   }
@@ -116,11 +116,32 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
 
-  // เริ่มต้น WiFi แบบไม่รอ (Non-blocking)
+  // เริ่มส่วนการเชื่อมต่อแบบมี Timeout 10 วินาที
   Serial.println("[WiFi] Connecting to " + wifi_ssid + "...");
   WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
-  
-  // ตั้งค่า Firebase
+
+  unsigned long startAttemptTime = millis();
+  bool isConnectedInSetup = false;
+
+  // วนลูปรอการเชื่อมต่อไม่เกิน 10 วินาที (10000 ms)
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 10000) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  // ตรวจสอบผลลัพธ์หลังผ่านไป 10 วินาที หรือต่อติดแล้ว
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\n[WiFi] Connected successfully!");
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.localIP());
+    isConnectedInSetup = true;
+  } else {
+    Serial.println("\n[WiFi] Timeout! Internet not found.");
+    Serial.println("[System] Activating OFFLINE MODE.");
+    Serial.println("[System] Sensor will work, but data won't sync until WiFi returns.");
+  }
+
+  // ตั้งค่า Firebase ไว้เสมอ (แม้ Offline ก็ตั้งค่าได้ Library จะจัดการรอเอง)
   config.api_key = FIREBASE_API_KEY;
   auth.user.email = USER_EMAIL;
   auth.user.password = USER_PASSWORD;
@@ -128,32 +149,31 @@ void setup() {
   config.timeout.wifiReconnect = 1000;
 
   Firebase.begin(&config, &auth);
-  Firebase.reconnectWiFi(true);
+  Firebase.reconnectWiFi(true); // คำสั่งนี้สำคัญ ช่วยให้มันต่อเองตอนเน็ตมา
   
-  Serial.println("[System] Setup Complete. Type 'ssid:NAME' or 'pass:KEY' to change Wi-Fi.");
+  Serial.println("[System] Setup Complete.");
 }
-
 
 // 6. LOOP
 void loop() {
   unsigned long currentMillis = millis();
 
-  // ตรวจจับคำสั่งเปลี่ยน Wi-Fi ---
+  // ตรวจจับคำสั่งเปลี่ยน Wi-Fi
   checkSerialCommand();
 
-  // เช็คสถานะ Wi-Fi และแจ้งเตือนทาง Serial ---
+  // เช็คสถานะ Wi-Fi และแจ้งเตือน (ส่วนนี้จะทำงานเมื่อเน็ตหลุด/หรือกลับมา)
   bool currentWifiState = (WiFi.status() == WL_CONNECTED);
   if (currentWifiState != lastWifiState) {
     if (currentWifiState) {
-      Serial.println("\n[WiFi] >>> CONNECTED! IP: " + WiFi.localIP().toString());
-      Serial.println("[Firebase] Initializing connection...");
+      Serial.println("\n[WiFi] >>> RECONNECTED! Switching to ONLINE MODE.");
+      Serial.println("[Firebase] Resuming synchronization...");
     } else {
-      Serial.println("\n[WiFi] >>> DISCONNECTED! Connection lost.");
+      Serial.println("\n[WiFi] >>> DISCONNECTED! Switching to OFFLINE MODE.");
     }
     lastWifiState = currentWifiState;
   }
 
-  // อ่านเซ็นเซอร์และคุมไฟ (ทำงานตลอดเวลา) ---
+  // อ่านเซ็นเซอร์และคุมไฟ (ทำงานตลอดเวลา ไม่สนเน็ต)
   if (currentMillis - lastSensorRead >= SENSOR_INTERVAL) {
     lastSensorRead = currentMillis;
 
@@ -171,9 +191,9 @@ void loop() {
          Serial.println("\n--------------------------------");
          Serial.printf("[Sensor] Distance: %.1f cm\n", distance);
          if(newStatus == "occupied") {
-            Serial.println("[Status] Car Detected! (Occupied) -> LED ON");
+            Serial.println("[Status] Car Detected! -> LED ON");
          } else {
-            Serial.println("[Status] Spot Freed! (Available) -> LED OFF");
+            Serial.println("[Status] Spot Freed! -> LED OFF");
          }
          Serial.println("--------------------------------");
       }
@@ -188,7 +208,7 @@ void loop() {
     }
   }
 
-  // จัดการ Firebase (ทำเมื่อมีเน็ต) ---
+  // จัดการ Firebase (ทำเมื่อมีเน็ตเท่านั้น) 
   if (WiFi.status() == WL_CONNECTED && Firebase.ready()) {
     
     // 2.1 เช็คสถานะจาก Server (Admin สั่งปิดไหม?)
@@ -198,8 +218,9 @@ void loop() {
       
       if (Firebase.Firestore.getDocument(&fbdo, FIREBASE_PROJECT_ID, "", documentPath.c_str())) {
         StaticJsonDocument<256> doc;
-        deserializeJson(doc, fbdo.payload());
-        if (doc["fields"]["status"]["stringValue"]) {
+        DeserializationError error = deserializeJson(doc, fbdo.payload());
+        
+        if (!error && doc["fields"]["status"]["stringValue"]) {
           String remoteVal = String(doc["fields"]["status"]["stringValue"]);
           
           if (remoteVal == "unavailable") {

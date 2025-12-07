@@ -512,7 +512,7 @@ class _HomePageState extends State<HomePage> {
     return AdaptiveScaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('Park Nhai'),
+        title: const Text('Pak Nhai'),
         // VVV 11. ปิดปุ่ม Profile ถ้า Offline VVV
         actions: [
           IconButton(
