@@ -11,6 +11,12 @@ import 'package:mtproject/pages/admin/admin_spot_list_page.dart';
 import 'package:mtproject/pages/admin/admin_instruction_page.dart';
 import 'package:mtproject/pages/profile_page.dart';
 
+// =================================================================================
+// หน้าหลักผู้ดูแลระบบ (ADMIN ROOT PAGE)
+// =================================================================================
+// เป็นจุดศูนย์รวมของ Admin Console โดยใช้ AdaptiveScaffold เพื่อจัดการ Navigation
+// มีการตรวจสอบสิทธิ์ความปลอดภัยก่อนเข้าใช้งาน
+
 class AdminRootPage extends StatefulWidget {
   const AdminRootPage({super.key});
 
@@ -30,6 +36,7 @@ class _AdminRootPageState extends State<AdminRootPage> {
     _verifyAdminAccess();
   }
 
+  // ตรวจสอบสิทธิ์ว่าเป็น Admin จริงหรือไม่
   Future<void> _verifyAdminAccess() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -52,6 +59,7 @@ class _AdminRootPageState extends State<AdminRootPage> {
     }
   }
 
+  // ส่งกลับหน้า Home หากไม่มีสิทธิ์
   void _redirectHome() {
     if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -70,12 +78,13 @@ class _AdminRootPageState extends State<AdminRootPage> {
       );
     }
 
+    // รวมหน้าย่อยทั้งหมดของ Admin
     final List<Widget> pages = [
-      const AdminDashboardPage(),
-      const AdminSpotListPage(),
-      const ParkingMapLayout(isAdmin: true),
-      const AdminInstructionPage(),
-      const ProfilePage(), // Add ProfilePage
+      const AdminDashboardPage(), // หน้าสรุปผลรวม
+      const AdminSpotListPage(), // หน้าจัดการสถานะรายช่อง
+      const ParkingMapLayout(isAdmin: true), // หน้าแผนที่ (โหมด Admin)
+      const AdminInstructionPage(), // คู่มือ Admin
+      const ProfilePage(), // โปรไฟล์ส่วนตัว
     ];
 
     return AdaptiveScaffold(

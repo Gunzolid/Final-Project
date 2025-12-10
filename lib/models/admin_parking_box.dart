@@ -3,14 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mtproject/services/firebase_parking_service.dart';
 
+// =================================================================================
+// ADMIN PARKING BOX: กล่องช่องจอดสำหรับหน้า Admin
+// (มีฟังก์ชันกดเพื่อแก้ไขสถานะได้)
+// =================================================================================
+
 class AdminParkingBox extends StatelessWidget {
-  // ยังคงเป็น StatelessWidget
   final String docId;
   final int id;
   final Axis direction;
 
   const AdminParkingBox({
-    // <-- ใช้ const constructor ได้
     super.key,
     required this.docId,
     required this.id,
@@ -21,6 +24,7 @@ class AdminParkingBox extends StatelessWidget {
   Widget build(BuildContext context) {
     final FirebaseParkingService parkingService = FirebaseParkingService();
 
+    // ใช้ StreamBuilder เพื่อแสดงผล Real-time
     return StreamBuilder<DocumentSnapshot>(
       stream:
           FirebaseFirestore.instance
@@ -28,6 +32,7 @@ class AdminParkingBox extends StatelessWidget {
               .doc(docId)
               .snapshots(),
       builder: (context, snapshot) {
+        // กรณีโหลดอยู่ หรือมี Error
         if (snapshot.connectionState == ConnectionState.waiting &&
             !snapshot.hasData) {
           return _buildPlaceholder(Colors.grey.shade300);
@@ -42,6 +47,7 @@ class AdminParkingBox extends StatelessWidget {
           return _buildPlaceholder(Colors.grey);
         }
 
+        // ดึงข้อมูลสถานะ
         final data = snapshot.data!.data() as Map<String, dynamic>;
         final status = (data['status'] ?? 'unknown').toString().toLowerCase();
         final note = data['note'] as String?;
@@ -50,6 +56,7 @@ class AdminParkingBox extends StatelessWidget {
                 ? 'สถานะ: $status\nหมายเหตุ: $note'
                 : 'สถานะ: $status';
 
+        // สร้างกล่องที่กดได้ (InkWell) และมี Tooltip บอกรายละเอียด
         return Tooltip(
           message: tooltipText,
           child: InkWell(
@@ -58,7 +65,8 @@ class AdminParkingBox extends StatelessWidget {
             child: _buildBox(
               _statusColor(status),
               textColor: Colors.white,
-              hasNote: note != null && note.isNotEmpty,
+              hasNote:
+                  note != null && note.isNotEmpty, // มีไอคอนโน้ตถ้ามีหมายเหตุ
             ),
           ),
         );
@@ -66,6 +74,7 @@ class AdminParkingBox extends StatelessWidget {
     );
   }
 
+  // สร้างกล่อง Placeholder กรณีโหลดข้อมูลไม่ได้
   Widget _buildPlaceholder(Color color, {IconData? icon}) {
     return Container(
       width: direction == Axis.vertical ? 30 : 45,
@@ -83,6 +92,7 @@ class AdminParkingBox extends StatelessWidget {
     );
   }
 
+  // Popup สำหรับแก้ไขสถานะ (Admin Action)
   Future<void> _showStatusDialog(
     BuildContext context,
     String currentStatus,
@@ -102,6 +112,7 @@ class AdminParkingBox extends StatelessWidget {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Dropdown เลือกสถานะ
                   DropdownButtonFormField<String>(
                     initialValue: selectedStatus,
                     decoration: const InputDecoration(labelText: 'สถานะ'),
@@ -119,6 +130,8 @@ class AdminParkingBox extends StatelessWidget {
                     },
                   ),
                   const SizedBox(height: 16),
+
+                  // ช่องกรอกหมายเหตุ (เฉพาะกรณี Unavailable)
                   if (selectedStatus == 'unavailable')
                     TextField(
                       controller: noteController,
@@ -137,6 +150,7 @@ class AdminParkingBox extends StatelessWidget {
                 FilledButton(
                   onPressed: () async {
                     try {
+                      // เตรียมข้อมูลอัปเดต
                       final updates = <String, dynamic>{
                         'status': selectedStatus,
                       };
@@ -153,6 +167,7 @@ class AdminParkingBox extends StatelessWidget {
                         updates['note'] = null;
                       }
 
+                      // สั่งอัปเดตผ่าน Service
                       await parkingService.updateParkingStatus(docId, updates);
                       if (context.mounted) Navigator.pop(context);
                     } catch (e) {
@@ -188,6 +203,7 @@ class AdminParkingBox extends StatelessWidget {
     }
   }
 
+  // สร้าง UI กล่อง
   Widget _buildBox(Color color, {Color? textColor, bool hasNote = false}) {
     final base = Container(
       width: direction == Axis.vertical ? 30 : 45,
@@ -219,6 +235,7 @@ class AdminParkingBox extends StatelessWidget {
 
     if (!hasNote) return base;
 
+    // ถ้ามี Note ให้แปะไอคอนเล็กๆ ไว้มุมขวาบน
     return Stack(
       children: [
         base,

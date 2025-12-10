@@ -1,4 +1,10 @@
+// lib/pages/admin/admin_instruction_page.dart
 import 'package:flutter/material.dart';
+
+// =================================================================================
+// หน้าคู่มือผู้ดูแลระบบ (ADMIN INSTRUCTION PAGE)
+// =================================================================================
+// แนะนำการใช้งานฟีเจอร์ต่างๆ ของฝั่ง Admin
 
 class AdminInstructionPage extends StatelessWidget {
   const AdminInstructionPage({super.key});
@@ -43,6 +49,7 @@ class AdminInstructionPage extends StatelessWidget {
     );
   }
 
+  // สร้างการ์ดแสดงขั้นตอนการใช้งาน
   Widget _buildStep(
     BuildContext context,
     String number,

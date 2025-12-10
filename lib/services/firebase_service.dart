@@ -7,10 +7,14 @@ class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
-  // อัปเดตข้อมูลโปรไฟล์ของผู้ใช้
+  // =================================================================================
+  // จัดการข้อมูลผู้ใช้ (USER PROFILE MANAGEMENT)
+  // =================================================================================
+
+  /// อัปเดตชื่อผู้ใช้ใน Firestore
   Future<void> updateUserProfile(String uid, String name) async {
     debugPrint(">>> Updating profile for UID: $uid");
-    debugPrint(">>> New name to save: $name"); // ดูว่าค่า name ถูกต้องไหม
+    debugPrint(">>> New name to save: $name");
     try {
       await _firestore.collection('users').doc(uid).update({'name': name});
       debugPrint(">>> Successfully updated 'name' field.");
@@ -19,7 +23,7 @@ class FirebaseService {
     }
   }
 
-  // อัปเดตข้อมูลผู้ใช้แบบ Generic
+  /// ฟังก์ชันอัปเดตข้อมูลผู้ใช้แบบระบุข้อมูลเอง (Generic Update)
   Future<void> updateUserData(String uid, Map<String, dynamic> data) async {
     try {
       await _firestore.collection('users').doc(uid).update(data);
@@ -30,31 +34,30 @@ class FirebaseService {
     }
   }
 
-  // ดึงข้อมูลโปรไฟล์จาก Firestore
+  /// ดึงข้อมูลโปรไฟล์จาก Firestore โดยใช้ UID ปัจจุบัน
   Future<Map<String, dynamic>?> getUserProfile() async {
-    String userId = FirebaseAuth.instance.currentUser?.uid ?? "test_user";
+    String userId = FirebaseAuth.instance.currentUser?.uid ?? "";
+    if (userId.isEmpty) return null;
+
     DocumentSnapshot doc =
         await _firestore.collection('users').doc(userId).get();
 
     return doc.exists ? doc.data() as Map<String, dynamic> : null;
   }
 
+  /// ลบข้อมูลผู้ใช้จาก Firestore (เฉพาะข้อมูลโปรไฟล์)
   Future<void> deleteUserData(String uid) async {
     try {
       await _firestore.collection('users').doc(uid).delete();
       debugPrint("User data deleted from Firestore for UID: $uid");
     } catch (e) {
       debugPrint("Error deleting user data from Firestore: $e");
-      // อาจจะ rethrow หรือจัดการ error ตามความเหมาะสม
       rethrow;
     }
   }
 
-  /// Deletes both the Firebase Auth user and the associated Firestore profile.
-  ///
-  /// Auth deletion is attempted first so that we never remove profile data when
-  /// the SDK requires a recent login. Once the credential is cleared, the user
-  /// document is removed using the stored UID.
+  /// ลบบัญชีผู้ใช้ถาวร (ลบทั้ง Authentication และ Firestore)
+  /// หมายเหตุ: ต้องมีการ Login ล่าสุดไม่นานเกินไป มิฉะนั้นต้อง Re-authenticate ก่อน
   Future<void> deleteCurrentUserCompletely() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -67,28 +70,36 @@ class FirebaseService {
     final uid = user.uid;
 
     try {
+      // 1. ลบบัญชี Auth ก่อน (เพื่อป้องกันการ Login ใหม่)
       await user.delete();
     } on FirebaseAuthException catch (e) {
+      // กรณี Login นานแล้ว ต้องแจ้งให้ผู้ใช้ Login ใหม่
       if (e.code == 'requires-recent-login') {
-        // Bubble up so the caller can trigger a re-authentication flow.
         rethrow;
       }
       rethrow;
     }
 
+    // 2. ลบข้อมูลใน Firestore ตามหลัง
     await _firestore.collection('users').doc(uid).delete();
   }
 
-  /// Returns true when the provided user document carries the admin role.
+  // =================================================================================
+  // ตรวจสอบสิทธิ์และบทบาท (PERMISSIONS & ROLES)
+  // =================================================================================
+
+  /// ตรวจสอบว่าเป็น Admin หรือไม่
   Future<bool> isAdmin(String uid) async {
     final doc = await _firestore.collection('users').doc(uid).get();
     final role = (doc.data()?['role'] as String?)?.toLowerCase();
     return role == 'admin';
   }
 
-  /// Triggers the Cloud Function that sends (stubbed) notification emails for
-  /// login and signup events. The function currently only logs a message, but
-  /// this keeps the client wired up for future integrations.
+  // =================================================================================
+  // ฟังก์ชันอื่น ๆ (UTILITIES & CLOUD FUNCTIONS)
+  // =================================================================================
+
+  /// เรียก Cloud Function เพื่อส่งอีเมลแจ้งเตือน (Login/Signup)
   Future<void> sendUserNotificationEmail({
     required String email,
     required String type,
@@ -104,7 +115,7 @@ class FirebaseService {
     }
   }
 
-  /// Saves the FCM device token to the user's profile.
+  /// บันทึก FCM Token สำหรับ Push Notification ลงในข้อมูลผู้ใช้
   Future<void> saveDeviceToken(String token) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;

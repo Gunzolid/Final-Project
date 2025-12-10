@@ -1,4 +1,10 @@
+// lib/pages/instruction_page.dart
 import 'package:flutter/material.dart';
+
+// =================================================================================
+// หน้าคำแนะนำการใช้งาน (INSTRUCTION PAGE)
+// =================================================================================
+// แสดงขั้นตอนการใช้งานและอธิบายความหมายของสีช่องจอด
 
 class InstructionPage extends StatelessWidget {
   const InstructionPage({super.key});
@@ -10,7 +16,10 @@ class InstructionPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
+          // ส่วนอธิบายสีช่องจอด
           _buildStatusColorsStep(context, '1'),
+
+          // ขั้นตอนการใช้งานต่างๆ
           _buildStep(
             context,
             '2',
@@ -44,6 +53,7 @@ class InstructionPage extends StatelessWidget {
     );
   }
 
+  // วิดเจ็ตสำหรับแสดงส่วนอธิบายสีช่องจอด
   Widget _buildStatusColorsStep(BuildContext context, String number) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -54,6 +64,7 @@ class InstructionPage extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // เลขขั้นตอน
             Container(
               width: 40,
               height: 40,
@@ -157,6 +168,7 @@ class InstructionPage extends StatelessWidget {
     );
   }
 
+  // วิดเจ็ตสำหรับแสดงขั้นตอนทั่วไป (Card)
   Widget _buildStep(
     BuildContext context,
     String number,

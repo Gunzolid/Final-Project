@@ -9,9 +9,15 @@ import 'package:mtproject/pages/login_page.dart';
 import 'package:mtproject/pages/profile_page.dart';
 import 'package:mtproject/services/firebase_parking_service.dart';
 import 'package:mtproject/pages/searching_page.dart';
-import 'package:mtproject/ui/adaptive_scaffold.dart'; // Import adaptive_scaffold
+import 'package:mtproject/ui/adaptive_scaffold.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:mtproject/pages/instruction_page.dart';
+
+// =================================================================================
+// หน้าหลัก (HOME PAGE)
+// =================================================================================
+// หน้าแรกของแอปพลิเคชัน แสดงแผนที่ลานจอดรถ สถานะช่องจอดแบบเรียลไทม์
+// และจัดการฟังก์ชันหลักเช่น การค้นหาที่จอด (Searching) และการจอง (Holding)
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -21,37 +27,40 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _currentIndex = 0;
+  int _currentIndex = 0; // Index ของเมนูนำทาง (0=Home, 1=Profile)
 
-  // State for Home Page Content
-  bool _isSearching = false;
-  int? _recommendedSpotLocal;
-  StreamSubscription? _recSub;
-  bool _isRecommendationDialogVisible = false;
+  // --- ตัวแปรสำหรับจัดการสถานะในหน้า Home ---
+  bool _isSearching = false; // กำลังอยู่ในหน้าค้นหาหรือไม่
+  int? _recommendedSpotLocal; // ID ช่องจอดที่ได้รับแนะนำ (ถ้ามี)
+  StreamSubscription? _recSub; // Subscription สำหรับติดตามสถานะช่องแนะนำ
+  bool _isRecommendationDialogVisible = false; // ป้องกัน dialog ซ้อนกัน
 
-  User? _currentUser;
-  bool _isLoadingUser = true;
-  StreamSubscription? _authSubscription;
+  User? _currentUser; // ผู้ใช้งานปัจจุบัน
+  bool _isLoadingUser = true; // กำลังโหลดข้อมูลผู้ใช้
+  StreamSubscription? _authSubscription; // ติดตามสถานะ Login/Logout
 
-  bool _isConnected = true;
-  StreamSubscription? _connectivitySubscription;
+  bool _isConnected = true; // สถานะการเชื่อมต่ออินเทอร์เน็ต
+  StreamSubscription? _connectivitySubscription; // ติดตามเน็ตหลุด/ต่อติด
   final FirebaseParkingService _parkingService = FirebaseParkingService();
 
   @override
   void initState() {
     super.initState();
+    // เริ่มต้น listener ต่างๆ
     _listenToAuthChanges();
     _listenToConnectivityChanges();
   }
 
   @override
   void dispose() {
+    // ยกเลิก listener เมื่อหน้านี้ถูกทำลาย
     _recSub?.cancel();
     _authSubscription?.cancel();
     _connectivitySubscription?.cancel();
     super.dispose();
   }
 
+  // ฟังก์ชันติดตามสถานะการ Login
   void _listenToAuthChanges() {
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((
       User? user,
@@ -61,9 +70,12 @@ class _HomePageState extends State<HomePage> {
           _currentUser = user;
           _isLoadingUser = false;
         });
+
         if (user != null) {
+          // ถ้า Login แล้ว ให้เช็คว่ามีการจองค้างไว้หรือไม่
           _checkExistingHold();
         } else {
+          // ถ้า Logout ให้เคลียร์ข้อมูลการจองในเครื่อง
           setState(() {
             _recommendedSpotLocal = null;
           });
@@ -73,16 +85,17 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  // ฟังก์ชันติดตามสถานะการเชื่อมต่อเน็ต
   void _listenToConnectivityChanges() {
-    // เช็คสถานะครั้งแรกตอนเปิดหน้า
+    // เช็คสถานะครั้งแรกทันที
     Connectivity().checkConnectivity().then(_updateConnectionStatus);
-    // คอยฟังการเปลี่ยนแปลง
+    // คอยฟังการเปลี่ยนแปลงตลอดเวลา
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
       _updateConnectionStatus,
     );
   }
 
-  // Helper function สำหรับอัปเดต state
+  // อัปเดตตัวแปร _isConnected ตามผลลัพธ์
   void _updateConnectionStatus(dynamic value) {
     final List<ConnectivityResult> results;
     if (value is ConnectivityResult) {
@@ -92,28 +105,38 @@ class _HomePageState extends State<HomePage> {
     } else {
       results = const [ConnectivityResult.none];
     }
+
     if (!mounted) return;
+
+    // ถือว่าต่อเน็ตได้ถ้าเป็น Mobile Data, Wifi หรือ Ethernet
     final connected = results.any((result) {
       return result == ConnectivityResult.mobile ||
           result == ConnectivityResult.wifi ||
           result == ConnectivityResult.ethernet;
     });
+
     setState(() {
       _isConnected = connected;
     });
   }
 
+  // เช็คว่า User นี้มีจองช่องไหนค้างไว้อยู่แล้วหรือไม่ (Recover State)
   Future<void> _checkExistingHold() async {
     final user = _currentUser;
     if (user == null) return;
+
+    // เรียกไปถาม Firebase
     final existing = await _parkingService.getActiveHeldSpotId(user.uid);
     if (existing != null && mounted) {
       setState(() => _recommendedSpotLocal = existing);
+      // ถ้ามีค้างอยู่ ให้เริ่มติดตามช่องนั้นต่อเลย
       _watchSpot(existing);
     }
   }
 
+  // เริ่มกระบวนการค้นหาที่จอด (เปิดหน้า SearchingPage)
   Future<void> _startSearching() async {
+    // ต้อง Login ก่อน
     if (_currentUser == null) {
       Navigator.push(
         context,
@@ -121,16 +144,20 @@ class _HomePageState extends State<HomePage> {
       );
       return;
     }
-    if (_isSearching) return;
+    if (_isSearching) return; // ป้องกันกดซ้ำ
+
     setState(() => _isSearching = true);
     try {
+      // เปิดหน้าค้นหา รอผลลัพธ์ (ID ช่องที่แนะนำ)
       final resultSpotId = await Navigator.push<int?>(
         context,
         MaterialPageRoute(builder: (_) => const SearchingPage()),
       );
+
+      // ถ้าได้ช่องกลับมา
       if (resultSpotId != null) {
         setState(() => _recommendedSpotLocal = resultSpotId);
-        _watchSpot(resultSpotId);
+        _watchSpot(resultSpotId); // เริ่มเฝ้าดูสถานะช่องนั้น
       }
     } finally {
       if (mounted) {
@@ -139,16 +166,19 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // เฝ้าดูช่องที่ User จองไว้ (Real-time listener)
   void _watchSpot(int spotId) {
     _recSub?.cancel();
     _recSub = _parkingService.watchRecommendation(spotId).listen((
       recommendation,
     ) {
+      // ถ้าสถานะการจอง "ไม่ Active" แล้ว (เช่น หมดเวลา, โดนแย่ง, หรือจอดสำเร็จ)
       if (!recommendation.isActive) {
         final msg = recommendation.reason ?? 'การจองสิ้นสุดลงแล้ว';
         if (mounted) {
-          setState(() => _recommendedSpotLocal = null);
-          // แจ้งเตือนผู้ใช้ทันทีเมื่อ Cloud Firestore แจ้งว่าการแนะนำหมดอายุหรือถูกยกเลิก
+          setState(() => _recommendedSpotLocal = null); // เคลียร์สถานะในหน้าจอ
+
+          // แจ้งเตือนผู้ใช้ว่าการจองจบลงแล้ว
           _showRecommendationEndedDialog(
             msg,
             status: recommendation.spotStatus,
@@ -159,11 +189,13 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  // Dialog แจ้งเมื่อการจองจบลง (เช่น หมดเวลา หรือมีคนจอด)
   Future<void> _showRecommendationEndedDialog(
     String message, {
     String? status,
   }) async {
     if (_isRecommendationDialogVisible || !mounted) return;
+
     _isRecommendationDialogVisible = true;
     final bool? retry = await showDialog<bool>(
       context: context,
@@ -179,25 +211,29 @@ class _HomePageState extends State<HomePage> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context, false),
+                onPressed: () => Navigator.pop(context, false), // ปิด
                 child: const Text('ปิด'),
               ),
               TextButton(
-                onPressed: () => Navigator.pop(context, true),
+                onPressed: () => Navigator.pop(context, true), // ค้นหาใหม่
                 child: const Text('ค้นหาอีกครั้ง'),
               ),
             ],
           ),
     );
     _isRecommendationDialogVisible = false;
+
+    // ถ้ากดค้นหาใหม่ ก็เริ่มค้นหาเลย
     if (retry == true && _isConnected) {
       _startSearching();
     }
   }
 
+  // ยกเลิกการจองช่องปัจจุบัน (User กดเอง)
   Future<void> _cancelCurrentHold() async {
     if (_currentUser == null || _recommendedSpotLocal == null) return;
     final spotToCancel = _recommendedSpotLocal!;
+
     try {
       await _parkingService.cancelHold(spotToCancel);
       if (mounted) {
@@ -218,8 +254,9 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // เมื่อผู้ใช้แตะที่ช่องจอดบนแผนที่ (เพื่อจองเอง Manual)
   Future<void> _onSpotSelected(int spotId) async {
-    // 1. Check Login
+    // 1. ตรวจสอบ Login
     if (_currentUser == null) {
       final bool? shouldLogin = await showDialog<bool>(
         context: context,
@@ -251,7 +288,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    // 2. Check Connection
+    // 2. ตรวจสอบ Offline
     if (!_isConnected) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('คุณกำลังออฟไลน์ ไม่สามารถจองได้')),
@@ -259,7 +296,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    // 3. Check Existing Hold
+    // 3. ตรวจสอบว่าจองช่องอื่นค้างไว้อยู่ไหม
     if (_recommendedSpotLocal != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -271,7 +308,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    // 4. Confirm Dialog
+    // 4. ถามยืนยัน
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder:
@@ -293,7 +330,7 @@ class _HomePageState extends State<HomePage> {
 
     if (confirm != true) return;
 
-    // 5. Perform Hold
+    // 5. ดำเนินการจอง
     try {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -305,8 +342,10 @@ class _HomePageState extends State<HomePage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
+      // สำเร็จ -> อัปเดต state local
       setState(() => _recommendedSpotLocal = spotId);
       _watchSpot(spotId);
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('จองช่อง $spotId สำเร็จ!')));
@@ -319,26 +358,32 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // --- _buildHomePageContent (เหมือนเดิมจากครั้งที่แล้ว) ---
+  // ส่วนแสดงเนื้อหาหลักของหน้า (แผนที่ + แถบสถานะด้านล่าง)
   Widget _buildHomePageContent(BuildContext context) {
     final bool isLoggedIn = _currentUser != null;
     final bool hasRecommendation = _recommendedSpotLocal != null;
+    // เงื่อนไขที่จะกดปุ่มค้นหาได้
     final bool canSearch =
         isLoggedIn && !_isSearching && !hasRecommendation && _isConnected;
 
     return Stack(
       children: [
+        // 1. แผนที่ลานจอด (ใช้พื้นที่ทั้งหมด)
         Positioned.fill(
           child: Padding(
-            padding: const EdgeInsets.only(bottom: 100.0),
+            padding: const EdgeInsets.only(
+              bottom: 100.0,
+            ), // เว้นที่ให้แถบด้านล่าง
             child: ParkingMapLayout(
-              // เมื่อออฟไลน์ เราแสดงผังสีเทาและไม่ให้ไฮไลต์ช่องใด ๆ
+              // ถ้า Offline ไม่ต้องไฮไลต์ช่องแนะนำ
               recommendedSpot: _isConnected ? _recommendedSpotLocal : null,
               offlineMode: !_isConnected,
               onSpotSelected: _onSpotSelected,
             ),
           ),
         ),
+
+        // 2. แถบควบคุมด้านล่าง (จำนวนว่าง + ปุ่มค้นหา)
         Positioned(
           bottom: 16,
           left: 16,
@@ -346,6 +391,7 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // 2.1 กล่องแสดงจำนวนที่ว่าง (Real-time Count)
               StreamBuilder<QuerySnapshot>(
                 stream:
                     FirebaseFirestore.instance
@@ -406,6 +452,7 @@ class _HomePageState extends State<HomePage> {
 
               const SizedBox(height: 8),
 
+              // 2.2 กล่องแสดงสถานะการจอง (ถ้ามี)
               if (isLoggedIn && hasRecommendation)
                 Material(
                   elevation: 4.0,
@@ -431,7 +478,6 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         TextButton.icon(
-                          // ปิดปุ่มเมื่อ Offline
                           onPressed: _isConnected ? _cancelCurrentHold : null,
                           icon: Icon(
                             Icons.cancel,
@@ -451,7 +497,7 @@ class _HomePageState extends State<HomePage> {
 
               const SizedBox(height: 16),
 
-              // VVV 9. ปรับแก้ปุ่มค้นหา VVV
+              // 2.3 ปุ่มค้นหาที่จอดรถ
               if (_isLoadingUser)
                 const CircularProgressIndicator()
               else if (isLoggedIn)
@@ -460,15 +506,17 @@ class _HomePageState extends State<HomePage> {
                   height: 50,
                   child: ElevatedButton(
                     onPressed:
-                        canSearch ? _startSearching : null, // <-- ใช้ canSearch
+                        canSearch
+                            ? _startSearching
+                            : null, // ปิดปุ่มถ้าไม่พร้อม
                     child: Text(
                       _isSearching
                           ? 'กำลังค้นหา...'
                           : (hasRecommendation
-                              ? 'คุณมีช่องจอดที่แนะนำแล้ว'
+                              ? 'คุณมีช่องจอดที่แนะนำแล้ว' // ถ้ามีจองอยู่ ห้ามค้นหาใหม่
                               : (_isConnected
                                   ? 'ค้นหาที่จอดรถ'
-                                  : 'Offline')), // <-- เปลี่ยนข้อความ
+                                  : 'Offline')), // ถ้า Offline ห้ามค้นหา
                     ),
                   ),
                 ),
@@ -476,7 +524,7 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
 
-        // VVV 10. เพิ่มแถบเตือน Offline VVV
+        // 3. ป้ายเตือน Offline (แสดงด้านบนสุด)
         if (!_isConnected)
           Positioned(
             top: 0,
@@ -504,6 +552,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // หน้าทั้งหมดใน Navigation Stack (Home, Profile)
     final List<Widget> pages = [
       _buildHomePageContent(context),
       _currentUser != null ? const ProfilePage() : const LoginPage(),
@@ -513,8 +562,8 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text('Pak Nhai'),
-        // VVV 11. ปิดปุ่ม Profile ถ้า Offline VVV
         actions: [
+          // ปุ่ม Help
           IconButton(
             icon: const Icon(Icons.help_outline),
             tooltip: 'คำแนะนำการใช้งาน',
@@ -525,6 +574,8 @@ class _HomePageState extends State<HomePage> {
               );
             },
           ),
+
+          // ปุ่ม Profile / Login
           if (_isLoadingUser)
             const Padding(
               padding: EdgeInsets.all(16.0),
@@ -538,19 +589,17 @@ class _HomePageState extends State<HomePage> {
             IconButton(
               icon: const Icon(Icons.person),
               tooltip: 'โปรไฟล์',
-              // ปิดปุ่มเมื่อ Offline
               onPressed:
                   _isConnected
                       ? () {
-                        setState(() => _currentIndex = 1);
+                        setState(() => _currentIndex = 1); // สลับไป Tab Profile
                       }
-                      : null,
+                      : null, // ห้ามเข้า Profile ถ้า Offline
             )
           else
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: ElevatedButton(
-                // ปิดปุ่มเมื่อ Offline
                 onPressed:
                     _isConnected
                         ? () => Navigator.push(
@@ -570,17 +619,18 @@ class _HomePageState extends State<HomePage> {
         AdaptiveNavigationItem(icon: Icons.person, label: 'โปรไฟล์'),
       ],
       onDestinationSelected: (index) {
-        // VVV 12. ปิดการไปหน้า Profile ถ้า Offline VVV
+        // ห้ามไปหน้า Profile ถ้า Offline
         if (index == 1 && !_isConnected) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('คุณกำลังออฟไลน์ ไม่สามารถดูโปรไฟล์ได้'),
             ),
           );
-          return; // ไม่ต้องทำอะไร
+          return;
         }
 
         if (index == 1 && _currentUser == null) {
+          // ถ้ากด Profile แต่ยังไม่ Login ให้เด้งไปหน้า Login
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const LoginPage()),

@@ -6,6 +6,11 @@ import 'package:mtproject/pages/instruction_page.dart';
 import 'package:mtproject/services/firebase_service.dart';
 import 'package:mtproject/services/theme_manager.dart';
 
+// =================================================================================
+// หน้าโปรไฟล์ (PROFILE PAGE)
+// =================================================================================
+// แสดงข้อมูลผู้ใช้, เปลี่ยนรูปโปรไฟล์, แก้ไขชื่อ, เปลี่ยนธีม, และออกจากระบบ
+
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -20,7 +25,7 @@ class _ProfilePageState extends State<ProfilePage> {
   User? _currentUser;
   String? _profileEmail;
 
-  // List of available avatars
+  // รายการรูปโปรไฟล์ (Avatar) ที่มีให้เลือก
   final List<IconData> _avatarIcons = [
     Icons.person,
     Icons.face,
@@ -37,6 +42,7 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadUserData();
   }
 
+  // โหลดข้อมูลผู้ใช้จาก Firestore
   Future<void> _loadUserData() async {
     setState(() => _isLoading = true);
     if (_currentUser != null) {
@@ -56,6 +62,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  // แสดง Dialog ให้เลือกรูปโปรไฟล์
   Future<void> _showAvatarSelectionDialog() async {
     await showDialog(
       context: context,
@@ -74,7 +81,7 @@ class _ProfilePageState extends State<ProfilePage> {
               itemCount: _avatarIcons.length,
               itemBuilder: (context, index) {
                 return InkWell(
-                  onTap: () => _updateAvatar(index),
+                  onTap: () => _updateAvatar(index), // เลือกแล้วอัปเดตเลย
                   borderRadius: BorderRadius.circular(50),
                   child: CircleAvatar(
                     radius: 30,
@@ -101,8 +108,9 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // อัปเดต index ของรูปโปรไฟล์ใน Firestore
   Future<void> _updateAvatar(int index) async {
-    Navigator.pop(context); // Close dialog
+    Navigator.pop(context); // ปิด Dialog
     if (_currentUser == null) return;
 
     setState(() => _isLoading = true);
@@ -110,7 +118,7 @@ class _ProfilePageState extends State<ProfilePage> {
       await _firebaseService.updateUserData(_currentUser!.uid, {
         'avatarIndex': index,
       });
-      await _loadUserData(); // Reload to show new avatar
+      await _loadUserData(); // โหลดข้อมูลใหม่เพื่อแสดงผล
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -127,6 +135,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final user = _currentUser;
+    // หา Icon ที่ใช้อยู่ปัจจุบัน
     final avatarIndex = _userData?['avatarIndex'] as int? ?? 0;
     final currentAvatar =
         (avatarIndex >= 0 && avatarIndex < _avatarIcons.length)
@@ -143,6 +152,7 @@ class _ProfilePageState extends State<ProfilePage> {
               : ListView(
                 padding: const EdgeInsets.all(16.0),
                 children: [
+                  // ส่วนแสดงรูปโปรไฟล์ + ปุ่มแก้ไข
                   Center(
                     child: Stack(
                       children: [
@@ -174,6 +184,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                   const SizedBox(height: 16),
+
+                  // ชื่อและอีเมล
                   Text(
                     _userData?['name'] ?? 'N/A',
                     textAlign: TextAlign.center,
@@ -186,12 +198,15 @@ class _ProfilePageState extends State<ProfilePage> {
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 24),
+
+                  // เมนูต่างๆ
                   const Divider(),
                   ListTile(
                     leading: const Icon(Icons.edit),
                     title: const Text('แก้ไขชื่อโปรไฟล์'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () async {
+                      // เปิดหน้าแก้ไขชื่อ
                       final result = await Navigator.push<bool>(
                         context,
                         MaterialPageRoute(
@@ -201,11 +216,14 @@ class _ProfilePageState extends State<ProfilePage> {
                               ),
                         ),
                       );
+                      // ถ้าแก้ไขสำเร็จ (result == true) ให้โหลดข้อมูลใหม่
                       if (result == true && mounted) {
                         _loadUserData();
                       }
                     },
                   ),
+
+                  // สวิตช์เปิด/ปิด Dark Mode
                   ValueListenableBuilder<ThemeMode>(
                     valueListenable: themeNotifier,
                     builder: (context, currentMode, child) {
@@ -225,6 +243,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     },
                   ),
                   const Divider(),
+
+                  // ปุ่มคำแนะนำการใช้งาน
                   ListTile(
                     leading: const Icon(Icons.help_outline),
                     title: const Text('คำแนะนำการใช้งาน'),
@@ -239,6 +259,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     },
                   ),
                   const Divider(),
+
+                  // ปุ่ม Logout
                   ListTile(
                     leading: Icon(Icons.logout, color: Colors.orange.shade700),
                     title: Text(
@@ -248,6 +270,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     onTap: () async {
                       await FirebaseAuth.instance.signOut();
                       if (!mounted) return;
+                      // กลับไปหน้า Home และเคลียร์ Stack
                       Navigator.of(
                         context,
                       ).pushNamedAndRemoveUntil('/home', (route) => false);

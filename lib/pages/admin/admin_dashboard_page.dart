@@ -1,6 +1,13 @@
+// lib/pages/admin/admin_dashboard_page.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mtproject/models/parking_layout_config.dart';
+
+// =================================================================================
+// หน้าแดชบอร์ดผู้ดูแลระบบ (ADMIN DASHBOARD)
+// =================================================================================
+// แสดงภาพรวมสถิติของลานจอดรถ เช่น จำนวนที่ว่าง, มีรถจอด, หรือปิดปรับปรุง
+// และแสดงรายการรถที่เข้าจอดล่าสุด (Live Feed)
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
@@ -20,7 +27,9 @@ class AdminDashboardPage extends StatelessWidget {
           }
 
           final docs = snapshot.data!.docs;
-          final total = kTotalSpots;
+          final total = kTotalSpots; // ค่าคงที่จำนวนช่องจอดทั้งหมด
+
+          // นับจำนวนสถานะต่างๆ
           final available =
               docs
                   .where(
@@ -28,7 +37,6 @@ class AdminDashboardPage extends StatelessWidget {
                   )
                   .length;
           final occupied = docs.where((d) => d['status'] == 'occupied').length;
-
           final unavailable =
               docs.where((d) => d['status'] == 'unavailable').length;
 
@@ -44,6 +52,8 @@ class AdminDashboardPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
+
+                // ส่วนแสดงการ์ดสถิติ (Responsive Wrapping)
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final width = constraints.maxWidth;
@@ -93,6 +103,8 @@ class AdminDashboardPage extends StatelessWidget {
                   },
                 ),
                 const SizedBox(height: 40),
+
+                // หัวข้อกิจกรรมล่าสุด
                 Text(
                   'Recent Activity',
                   style: Theme.of(
@@ -109,6 +121,7 @@ class AdminDashboardPage extends StatelessWidget {
     );
   }
 
+  // สร้าง Widget การ์ดแสดงสถิติ
   Widget _buildStatCard(
     BuildContext context,
     String title,
@@ -176,9 +189,10 @@ class AdminDashboardPage extends StatelessWidget {
     );
   }
 
+  // สร้าง List แสดงกิจกรรมล่าสุด (เฉพาะช่องที่มีรถจอด)
   Widget _buildRecentActivityList(List<QueryDocumentSnapshot> docs) {
     final occupiedDocs = docs.where((d) => d['status'] == 'occupied').toList();
-    // Sort by start_time descending if available
+    // เรียงลำดับตามเวลาเข้าจอดล่าสุด (ถ้ามีข้อมูล)
     occupiedDocs.sort((a, b) {
       final tA = a['start_time'] as Timestamp?;
       final tB = b['start_time'] as Timestamp?;

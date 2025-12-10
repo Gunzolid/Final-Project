@@ -1,10 +1,13 @@
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
 
+// [NOTE] ไฟล์นี้อาจจะซ้ำซ้อนกับ services/directions_service.dart
+// แต่ถ้ามีการเรียกใช้จาก Models ก็เก็บไว้ได้
+
 const _destLat = 7.893474020477164;
 const _destLng = 98.35215685845772;
 
-/// ขอสิทธิ์ + อ่านตำแหน่งปัจจุบันแบบง่าย
+/// ขอสิทธิ์ + อ่านตำแหน่งปัจจุบัน
 Future<Position> _getCurrentPosition() async {
   var perm = await Geolocator.checkPermission();
   if (perm == LocationPermission.denied) {
@@ -22,7 +25,7 @@ Future<Position> _getCurrentPosition() async {
   );
 }
 
-/// เปิดเส้นทางไป "ตึก 6 ม.อ.ภูเก็ต" บน Google Maps (ฟรี)
+/// เปิดเส้นทางไป "ตึก 6 ม.อ.ภูเก็ต" บน Google Maps
 Future<void> openGoogleMapsToPSUPK() async {
   final pos = await _getCurrentPosition();
   final originLat = pos.latitude;

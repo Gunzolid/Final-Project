@@ -1,9 +1,14 @@
+// lib/pages/sign_up_page.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:email_validator/email_validator.dart';
 import 'package:mtproject/services/firebase_service.dart';
 import 'package:mtproject/services/notification_service.dart';
+
+// =================================================================================
+// หน้าสมัครสมาชิก (SIGN UP PAGE)
+// =================================================================================
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -18,13 +23,15 @@ class _SignUpPageState extends State<SignUpPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _nameController = TextEditingController();
-  bool _isSubmitting = false;
-  String errorText = '';
 
+  bool _isSubmitting = false; // สถานะกำลังส่งข้อมูล
+  String errorText = ''; // ข้อความ Error ที่แสดงผล
+
+  // ฟังก์ชันสมัครสมาชิก
   Future<void> _signUp() async {
     if (_isSubmitting) return;
     if (!_formKey.currentState!.validate()) {
-      return;
+      return; // กรอกข้อมูลไม่ครบหรือผิดรูปแบบ
     }
 
     final name = _nameController.text.trim();
@@ -35,31 +42,36 @@ class _SignUpPageState extends State<SignUpPage> {
       _isSubmitting = true;
       errorText = '';
     });
+
     try {
+      // 1. สร้าง Account ใน Firebase Auth
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
 
+      // 2. บันทึกข้อมูลโปรไฟล์ลง Firestore (users collection)
       final uid = userCredential.user!.uid;
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'name': name,
         'email': email,
         'created_at': FieldValue.serverTimestamp(),
-        'role': 'user',
+        'role': 'user', // กำหนด Role เริ่มต้นเป็น User ทั่วไป
       });
 
+      // 3. อัปเดต Display Name ใน Auth Profile
       await userCredential.user!.updateDisplayName(name);
 
+      // 4. ส่งอีเมลแจ้งเตือน (Welcome Email)
       FirebaseService().sendUserNotificationEmail(email: email, type: 'signup');
 
-      // Save FCM Token
+      // 5. บันทึก Token สำหรับแจ้งเตือน (FCM)
       await NotificationService().saveTokenToUser(uid);
 
-      // ✅ แก้ตรงนี้: ไปหน้า Home หลังสมัครทันที
+      // 6. สมัครเสร็จแล้วพาไปหน้า Home ทันที (ล้าง Stack เดิมทิ้ง)
       if (!mounted) return;
-      // ล้างสแต็คเพื่อให้หน้าโฮมเป็น root หลังสมัครเสร็จ
       Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
     } on FirebaseAuthException catch (e) {
       setState(() {
+        // แสดงข้อความ Error ภาษาไทย (ถ้าทำได้) หรือใช้ message จาก Firebase
         errorText = e.message ?? 'เกิดข้อผิดพลาดในการสมัครสมาชิก';
       });
     } finally {
@@ -73,6 +85,7 @@ class _SignUpPageState extends State<SignUpPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // ปุ่มย้อนกลับ
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -92,6 +105,7 @@ class _SignUpPageState extends State<SignUpPage> {
                   ),
                   const SizedBox(height: 30),
 
+                  // ช่องกรอกชื่อ
                   TextFormField(
                     controller: _nameController,
                     decoration: InputDecoration(
@@ -112,6 +126,7 @@ class _SignUpPageState extends State<SignUpPage> {
                   ),
                   const SizedBox(height: 15),
 
+                  // ช่องกรอกอีเมล
                   TextFormField(
                     controller: _emailController,
                     decoration: InputDecoration(
@@ -137,6 +152,7 @@ class _SignUpPageState extends State<SignUpPage> {
                   ),
                   const SizedBox(height: 15),
 
+                  // ช่องกรอกรหัสผ่าน
                   TextFormField(
                     controller: _passwordController,
                     obscureText: true,
@@ -158,6 +174,7 @@ class _SignUpPageState extends State<SignUpPage> {
                   ),
                   const SizedBox(height: 15),
 
+                  // ช่องยืนยันรหัสผ่าน
                   TextFormField(
                     controller: _confirmPasswordController,
                     obscureText: true,
@@ -179,11 +196,13 @@ class _SignUpPageState extends State<SignUpPage> {
                   ),
                   const SizedBox(height: 15),
 
+                  // ข้อความ Error
                   if (errorText.isNotEmpty)
                     Text(errorText, style: const TextStyle(color: Colors.red)),
 
                   const SizedBox(height: 20),
 
+                  // ปุ่มสมัครสมาชิก
                   SizedBox(
                     width: double.infinity,
                     height: 50,

@@ -1,6 +1,13 @@
+// lib/pages/admin/admin_spot_list_page.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mtproject/services/firebase_parking_service.dart';
+
+// =================================================================================
+// หน้าจัดการสถานะช่องจอด (MANAGE SPOTS)
+// =================================================================================
+// ให้ Admin ดูรายการช่องจอดทั้งหมดในรูปแบบ Grid
+// สามารถกดเพื่อแก้ไขสถานะรายช่อง หรือกดปุ่ม Bulk Action เพื่อเปลี่ยนสถานะทั้งหมด
 
 class AdminSpotListPage extends StatefulWidget {
   const AdminSpotListPage({super.key});
@@ -11,14 +18,17 @@ class AdminSpotListPage extends StatefulWidget {
 
 class _AdminSpotListPageState extends State<AdminSpotListPage> {
   final FirebaseParkingService _parkingService = FirebaseParkingService();
-  String _filter = 'All'; // All, Available, Occupied, Unavailable
+  String _filter = 'All'; // ตัวกรองสถานะ: All, Available, Occupied, Unavailable
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Column(
         children: [
+          // ส่วนหัว (Header) + ตัวกรอง
           _buildHeader(context),
+
+          // ส่วนรายการช่องจอด (Grid)
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream:
@@ -35,6 +45,7 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
                 }
 
                 final docs = snapshot.data!.docs;
+                // กรองข้อมูลตาม Filter ที่เลือก
                 final filteredDocs =
                     docs.where((doc) {
                       if (_filter == 'All') return true;
@@ -70,6 +81,7 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
     );
   }
 
+  // สร้างส่วนหัว พร้อม Dropdown Filter และปุ่ม Bulk Action
   Widget _buildHeader(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -94,7 +106,7 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
                 ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const Spacer(),
-              // Filter Dropdown
+              // Dropdown สำหรับเลือก Filter Status
               DropdownButton<String>(
                 value: _filter,
                 underline: Container(),
@@ -109,6 +121,7 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
             ],
           ),
           const SizedBox(height: 16),
+          // ปุ่ม Action เหมาเข่ง (Set All)
           Row(
             children: [
               Expanded(
@@ -143,6 +156,7 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
     );
   }
 
+  // สร้างการ์ดแสดงแต่ละช่องจอด
   Widget _buildSpotCard(
     BuildContext context,
     String docId,
@@ -152,6 +166,7 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
     final status = (data['status'] ?? 'unknown').toString().toLowerCase();
     final note = data['note'] as String?;
 
+    // กำหนดสีและไอคอนตามสถานะ
     Color color;
     IconData icon;
     switch (status) {
@@ -230,6 +245,7 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
     );
   }
 
+  // Dialog แก้ไขสถานะรายช่อง
   Future<void> _showEditDialog(
     String docId,
     int id,
@@ -266,6 +282,7 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
                       },
                     ),
                     const SizedBox(height: 16),
+                    // ให้ใส่หมายเหตุได้ถ้าเป็น unavailable
                     if (selectedStatus == 'unavailable')
                       TextField(
                         controller: noteController,
@@ -286,6 +303,7 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
                       final updates = <String, dynamic>{
                         'status': selectedStatus,
                       };
+                      // Logic การเคลียร์ค่าเมื่อเปลี่ยนสถานะ
                       if (selectedStatus == 'unavailable') {
                         updates['note'] = noteController.text.trim();
                         updates['start_time'] = null;
@@ -310,6 +328,7 @@ class _AdminSpotListPageState extends State<AdminSpotListPage> {
     );
   }
 
+  // ยืนยันการทำรายการแบบกลุ่ม
   Future<void> _confirmBulkAction(String status) async {
     final confirm = await showDialog<bool>(
       context: context,

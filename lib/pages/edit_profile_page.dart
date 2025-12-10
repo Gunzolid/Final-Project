@@ -3,16 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mtproject/services/firebase_service.dart';
 
+// =================================================================================
+// หน้าแก้ไขโปรไฟล์ (EDIT PROFILE PAGE)
+// =================================================================================
+// อนุญาตให้ผู้ใช้แก้ไขชื่อ (Display Name) ได้ แต่ไม่ให้แก้ Email
+
 class EditProfilePage extends StatefulWidget {
   final String currentName;
-  // ลบ currentEmail ออก
-  // final String currentEmail;
 
-  const EditProfilePage({
-    super.key,
-    required this.currentName,
-    // ลบ required this.currentEmail ออก
-  });
+  const EditProfilePage({super.key, required this.currentName});
 
   @override
   State<EditProfilePage> createState() => _EditProfilePageState();
@@ -21,8 +20,6 @@ class EditProfilePage extends StatefulWidget {
 class _EditProfilePageState extends State<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
-  // ลบ _emailController ออก
-  // late TextEditingController _emailController;
   final FirebaseService _firebaseService = FirebaseService();
   bool _isLoading = false;
 
@@ -30,16 +27,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.currentName);
-    // ลบการกำหนดค่า _emailController ออก
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    // ลบการ dispose _emailController ออก
     super.dispose();
   }
 
+  // บันทึกข้อมูล
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -56,10 +52,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
     bool profileUpdated = false;
 
     try {
-      // --- อัปเดตชื่อใน Firestore (ถ้ามีการเปลี่ยนแปลง) ---
+      // ตรวจสอบว่าชื่อเปลี่ยนไปหรือไม่
       if (newName != widget.currentName) {
-        // ตรวจสอบว่าฟังก์ชัน updateUserProfile รับแค่ uid กับ name
+        // อัปเดตใน Firestore
         await _firebaseService.updateUserProfile(user.uid, newName);
+        // อัปเดตใน Auth Profile
         await user.updateDisplayName(newName);
         profileUpdated = true;
         debugPrint("Name updated in Firestore.");
@@ -70,9 +67,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('บันทึกชื่อสำเร็จ')));
-          Navigator.pop(context, true); // ส่ง true กลับไปบอกว่ามีการเปลี่ยนแปลง
+          Navigator.pop(
+            context,
+            true,
+          ); // ส่ง true เพื่อบอกหน้าแม่ว่ามีการเปลี่ยนแปลง
         } else {
-          Navigator.pop(context, false); // ไม่มีการเปลี่ยนแปลง
+          Navigator.pop(context, false); // ส่ง false (ไม่มีอะไรเปลี่ยน)
         }
       }
     } catch (e) {
@@ -92,15 +92,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('แก้ไขชื่อโปรไฟล์'), // เปลี่ยน Title
-      ),
+      appBar: AppBar(title: const Text('แก้ไขชื่อโปรไฟล์')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
+              // ช่องกรอกชื่อ
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'ชื่อ'),
@@ -111,8 +110,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   return null;
                 },
               ),
-              // ลบ TextFormField ของ Email ออก
               const SizedBox(height: 32),
+
+              // ปุ่มบันทึก
               _isLoading
                   ? const CircularProgressIndicator()
                   : ElevatedButton(

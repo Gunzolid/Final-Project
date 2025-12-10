@@ -1,27 +1,38 @@
 import 'package:flutter/material.dart';
 
-// --- ค่าคงที่สำหรับ Layout ---
+// =================================================================================
+// การตั้งค่าเค้าโครงแผนที่ (PARKING LAYOUT CONFIGURATION)
+// =================================================================================
+
+// จำนวนช่องจอดทั้งหมดในระบบ
 const int kTotalSpots = 52;
+// ระยะที่ต้องการขยับแผนที่ขึ้นด้านบน (Shift Up) เพื่อจัดกึ่งกลาง
 const double kLayoutVerticalShift = 40.0;
 
-/// -----------------------------------------------------------------
+// -----------------------------------------------------------------
+// การตั้งค่าถนนและพื้นที่ (ROAD & MAP DIMENSIONS)
+// -----------------------------------------------------------------
 
-// --- ตำแหน่งถนน (คำนวณอัตโนมัติ) ---
-const double kRoadTopY = 100.0 - kLayoutVerticalShift;
-const double kRoadBottomY = 570.0 - kLayoutVerticalShift;
-const double kRoadLeftX = 50.0;
-const double kRoadRightX = 270.0;
-const double kRoadHorizontalWidth = 300.0;
-const double kRoadVerticalHeight = 470.0; // 570 - 100
-const double kRoadHeight = 40.0;
-const double kMapTotalHeight = 1400.0; // ความสูงรวมของแผนที่
+const double kRoadTopY = 100.0 - kLayoutVerticalShift; // ขอบถนนด้านบน
+const double kRoadBottomY = 570.0 - kLayoutVerticalShift; // ขอบถนนด้านล่าง
+const double kRoadLeftX = 50.0; // ขอบถนนด้านซ้าย
+const double kRoadRightX = 270.0; // ขอบถนนด้านขวา
 
-// --- Class ข้อมูลตำแหน่ง ---
+const double kRoadHorizontalWidth = 300.0; // ความกว้างถนนแนวนอน
+const double kRoadVerticalHeight = 470.0; // ความสูงถนนแนวตั้ง (570 - 100)
+const double kRoadHeight = 40.0; // ความกว้างของเลนถนน
+
+const double kMapTotalHeight =
+    1400.0; // ความสูงรวมของพื้นที่วาดแผนที่ (Canvas Height)
+
+// -----------------------------------------------------------------
+// คลาสเก็บข้อมูลตำแหน่งช่องจอด (DATA CLASS)
+// -----------------------------------------------------------------
 class ParkingLayoutInfo {
-  final int id;
-  final double x; // left
-  final double y; // top
-  final Axis direction;
+  final int id; // หมายเลขช่องจอด
+  final double x; // ตำแหน่ง X (ซ้าย)
+  final double y; // ตำแหน่ง Y (บน)
+  final Axis direction; // ทิศทางการวาง (แนวนอน/แนวตั้ง)
 
   const ParkingLayoutInfo({
     required this.id,
@@ -31,12 +42,17 @@ class ParkingLayoutInfo {
   });
 }
 
-// --- List พิกัดช่องจอด (คำนวณอัตโนมัติ) ---
-// (พิกัด y ทั้งหมดจะถูกลบด้วย kLayoutVerticalShift)
+// -----------------------------------------------------------------
+// พิกัดช่องจอดทั้งหมด 52 ช่อง (STATIC COORDINATES)
+// หมายเหตุ: ค่า Y ทั้งหมดถูกปรับด้วย kLayoutVerticalShift แล้ว
+// -----------------------------------------------------------------
 const List<ParkingLayoutInfo> kParkingLayoutXY = [
+  // แถวบนสุด (1-3)
   ParkingLayoutInfo(id: 1, x: 195, y: 140 - kLayoutVerticalShift),
   ParkingLayoutInfo(id: 2, x: 165, y: 140 - kLayoutVerticalShift),
   ParkingLayoutInfo(id: 3, x: 135, y: 140 - kLayoutVerticalShift),
+
+  // เสาซ้ายบน (4-8) - แนวนอน
   ParkingLayoutInfo(
     id: 4,
     x: 90,
@@ -67,6 +83,8 @@ const List<ParkingLayoutInfo> kParkingLayoutXY = [
     y: 290 - kLayoutVerticalShift,
     direction: Axis.horizontal,
   ),
+
+  // เสาซ้ายล่าง (9-13) - แนวนอน
   ParkingLayoutInfo(
     id: 9,
     x: 90,
@@ -97,9 +115,13 @@ const List<ParkingLayoutInfo> kParkingLayoutXY = [
     y: 530 - kLayoutVerticalShift,
     direction: Axis.horizontal,
   ),
+
+  // แถวล่างตรงกลาง (14-16)
   ParkingLayoutInfo(id: 14, x: 135, y: 520 - kLayoutVerticalShift),
   ParkingLayoutInfo(id: 15, x: 165, y: 520 - kLayoutVerticalShift),
   ParkingLayoutInfo(id: 16, x: 195, y: 520 - kLayoutVerticalShift),
+
+  // เสาขวาล่าง (17-21) - แนวนอน
   ParkingLayoutInfo(
     id: 17,
     x: 225,
@@ -130,6 +152,8 @@ const List<ParkingLayoutInfo> kParkingLayoutXY = [
     y: 380 - kLayoutVerticalShift,
     direction: Axis.horizontal,
   ),
+
+  // เสาขวาบน (22-26) - แนวนอน
   ParkingLayoutInfo(
     id: 22,
     x: 225,
@@ -160,9 +184,13 @@ const List<ParkingLayoutInfo> kParkingLayoutXY = [
     y: 150 - kLayoutVerticalShift,
     direction: Axis.horizontal,
   ),
+
+  // แถวบนสุดนอกสุด (27-29)
   ParkingLayoutInfo(id: 27, x: 130, y: 50 - kLayoutVerticalShift),
   ParkingLayoutInfo(id: 28, x: 100, y: 50 - kLayoutVerticalShift),
   ParkingLayoutInfo(id: 29, x: 70, y: 50 - kLayoutVerticalShift),
+
+  // เสาซ้ายนอกสุด (30-39) - แนวนอน
   ParkingLayoutInfo(
     id: 30,
     x: 5,
@@ -223,9 +251,13 @@ const List<ParkingLayoutInfo> kParkingLayoutXY = [
     y: 530 - kLayoutVerticalShift,
     direction: Axis.horizontal,
   ),
+
+  // แถวล่างสุด (40-42)
   ParkingLayoutInfo(id: 40, x: 70, y: 615 - kLayoutVerticalShift),
   ParkingLayoutInfo(id: 41, x: 100, y: 615 - kLayoutVerticalShift),
   ParkingLayoutInfo(id: 42, x: 130, y: 615 - kLayoutVerticalShift),
+
+  // เสาขวานอกสุด (43-52) - แนวนอน
   ParkingLayoutInfo(
     id: 43,
     x: 310,
@@ -288,12 +320,13 @@ const List<ParkingLayoutInfo> kParkingLayoutXY = [
   ),
 ];
 
-// --- Class ข้อมูลลูกศรบอกทาง ---
+// -----------------------------------------------------------------
+// ข้อมูลลูกศรบอกทิศทาง (ARROWS)
+// -----------------------------------------------------------------
 class ParkingArrowInfo {
   final double x;
   final double y;
-  final double
-  angle; // มุมหมุน (radian) 0 = หัวชี้ไปทางขวา, pi/2 = ลง, pi = ซ้าย, -pi/2 = ขึ้น
+  final double angle; // มุมหมุน (radian)
 
   const ParkingArrowInfo({
     required this.x,
@@ -302,7 +335,6 @@ class ParkingArrowInfo {
   });
 }
 
-// --- List พิกัดลูกศร (ตัวอย่าง) ---
 const List<ParkingArrowInfo> kParkingArrows = [
   // ถนนแนวตั้งซ้าย (ชี้ลง)
   ParkingArrowInfo(x: kRoadLeftX + 6, y: 150, angle: 1.57), // pi/2

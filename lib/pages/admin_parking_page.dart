@@ -7,9 +7,14 @@ import 'package:mtproject/models/admin_parking_map_layout.dart';
 import 'package:mtproject/services/firebase_service.dart';
 import 'package:mtproject/ui/adaptive_scaffold.dart';
 
-// 2. เปลี่ยนเป็น StatefulWidget
 import 'package:mtproject/pages/admin/admin_dashboard_page.dart';
 import 'package:mtproject/pages/admin/admin_spot_list_page.dart';
+
+// =================================================================================
+// หน้า Admin Console (ทางเลือก)
+// =================================================================================
+// หน้านี้คล้ายกับ AdminRootPage ใช้สำหรับเข้าถึงฟังก์ชันของผู้ดูแลระบบ
+// ตรวจสอบสิทธิ์ก่อนเข้าใช้งาน และรวบรวมเมนูต่างๆ ไว้ในที่เดียว
 
 class AdminParkingPage extends StatefulWidget {
   const AdminParkingPage({super.key});
@@ -21,8 +26,8 @@ class AdminParkingPage extends StatefulWidget {
 class _AdminParkingPageState extends State<AdminParkingPage> {
   final FirebaseService _firebaseService = FirebaseService();
   int _selectedIndex = 0;
-  bool _checkingAccess = true;
-  bool _hasAccess = false;
+  bool _checkingAccess = true; // กำลังตรวจสอบสิทธิ์
+  bool _hasAccess = false; // มีสิทธิ์หรือไม่
 
   @override
   void initState() {
@@ -30,6 +35,7 @@ class _AdminParkingPageState extends State<AdminParkingPage> {
     _verifyAdminAccess();
   }
 
+  // ตรวจสอบว่าเป็น Admin หรือไม่
   Future<void> _verifyAdminAccess() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -43,7 +49,7 @@ class _AdminParkingPageState extends State<AdminParkingPage> {
         _checkingAccess = false;
         _hasAccess = false;
       });
-      _redirectHome();
+      _redirectHome(); // ถ้าไม่ใช่ Admin ให้ดีดกลับหน้า Home
     } else {
       setState(() {
         _hasAccess = true;
@@ -52,6 +58,7 @@ class _AdminParkingPageState extends State<AdminParkingPage> {
     }
   }
 
+  // ดีดกลับหน้า Home
   void _redirectHome() {
     if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -70,10 +77,11 @@ class _AdminParkingPageState extends State<AdminParkingPage> {
       );
     }
 
+    // หน้าเมนูย่อยของ Admin
     final List<Widget> pages = [
-      const AdminDashboardPage(),
-      const AdminSpotListPage(),
-      const AdminParkingMapLayout(), // Reuse existing map layout
+      const AdminDashboardPage(), // Dashboard สรุปผล
+      const AdminSpotListPage(), // จัดการสถานะรายช่อง
+      const AdminParkingMapLayout(), // ดูแผนที่ในมุมมอง Admin
     ];
 
     return AdaptiveScaffold(

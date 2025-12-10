@@ -1,13 +1,18 @@
 // lib/models/admin_parking_map_layout.dart
 import 'package:flutter/material.dart';
-// 1. Import config file
 import 'package:mtproject/models/parking_layout_config.dart';
 import 'admin_parking_box.dart';
 
+// =================================================================================
+// แผนที่ลานจอดสำหรับ Admin (ADMIN MAP LAYOUT)
+// =================================================================================
+
 class AdminParkingMapLayout extends StatelessWidget {
   const AdminParkingMapLayout({super.key});
+
   @override
   Widget build(BuildContext context) {
+    // กำหนดสีถนนตาม Theme
     final brightness = Theme.of(context).brightness;
     final roadColor =
         brightness == Brightness.dark ? Colors.white : Colors.black;
@@ -16,15 +21,17 @@ class AdminParkingMapLayout extends StatelessWidget {
     return InteractiveViewer(
       maxScale: 3.0,
       minScale: 0.1,
-      boundaryMargin: const EdgeInsets.all(double.infinity),
+      boundaryMargin: const EdgeInsets.all(double.infinity), // เลื่อนได้อิสระ
       child: Container(
         width: 800,
-        // 2. ใช้ความสูงที่คำนวณจาก config
-        height: kMapTotalHeight,
+        height: kMapTotalHeight, // ความสูงจาก Config
         color: backgroundColor,
         child: Stack(
           children: [
-            // 3. ใช้ const ตำแหน่งถนนจาก config
+            // =========================================================
+            // ส่วนที่ 1: วาดถนน
+            // =========================================================
+
             // ถนนแนวนอนบน
             Positioned(
               top: kRoadTopY,
@@ -66,7 +73,9 @@ class AdminParkingMapLayout extends StatelessWidget {
               ),
             ),
 
-            // 4. Loop นี้จะใช้ kParkingLayoutXY ที่ import มา
+            // =========================================================
+            // ส่วนที่ 2: วาดช่องจอด (ใช้ AdminParkingBox)
+            // =========================================================
             for (final spotInfo in kParkingLayoutXY)
               Positioned(
                 top: spotInfo.y,
