@@ -7,13 +7,13 @@
 
 // 1. ส่วนตั้งค่า (CONFIGURATION)
 // ค่า Default (กรณีเริ่มใช้ครั้งแรก หรือยังไม่ได้ตั้งค่าผ่าน Serial)
-String wifi_ssid = "SoLiD";
-String wifi_pass = "0937426904";
+String wifi_ssid = "WiFi Name";
+String wifi_pass = "WiFi Password";
 
-#define FIREBASE_API_KEY "AIzaSyA9tqJbkkl3iA-c4-m0Uj1VvNc4dsrX1ds"
-#define FIREBASE_PROJECT_ID "project-4f636"
-#define USER_EMAIL "esp32-device-01@yourproject.com"
-#define USER_PASSWORD "a_very_strong_password_1234"
+#define FIREBASE_API_KEY "Firebase API Key"
+#define FIREBASE_PROJECT_ID "Firebase Project ID"
+#define USER_EMAIL "Firebase IOT User Email"
+#define USER_PASSWORD "Firebase IOT User Password"
 
 // ส่วน Hardware
 #define PARKING_SPOT_ID "1"

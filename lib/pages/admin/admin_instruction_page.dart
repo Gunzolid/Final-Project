@@ -20,14 +20,14 @@ class AdminInstructionPage extends StatelessWidget {
           _buildStep(
             context,
             '2',
-            'จัดการช่องจอด (Manage Spots)',
+            'จัดการช่องจอด',
             'ในหน้า Manage Spots คุณสามารถเปลี่ยนสถานะของแต่ละช่องจอดได้ด้วยตนเอง เช่น ตั้งเป็น "ว่าง" หรือ "ปิดบริการ"',
             Icons.edit_location_alt,
           ),
           _buildStep(
             context,
             '3',
-            'การจัดการแบบกลุ่ม (Bulk Actions)',
+            'การจัดการแบบกลุ่ม',
             'ปุ่ม "Set All Available" จะรีเซ็ตทุกช่องให้ว่าง (ใช้ตอนเปิดลานจอด) และ "Set All Unavailable" จะปิดทุกช่อง (ใช้ตอนปิดลานจอด)',
             Icons.layers,
           ),
